@@ -1,0 +1,508 @@
+import fs from 'node:fs';
+import http from 'node:http';
+import path from 'node:path';
+import process from 'node:process';
+import { chromium } from 'playwright-core';
+import { runMobileStartup, runMobileTest } from './mobile-game.mjs';
+import { runAdsTest } from './ads-game.mjs';
+import { runSniperTest } from './sniper-game.mjs';
+import { runGraphicsTest } from './graphics-game.mjs';
+
+const root = process.cwd();
+const webRoot = path.resolve(root, process.env.AI_GAME_WEB_ROOT ?? 'export/web');
+const artifactRoot = path.resolve(root, process.env.AI_GAME_ARTIFACT_DIR ??
+  (process.argv[2] === 'mobile-test' ? 'artifacts/ai-mobile' : process.argv[2] === 'graphics-test' ? 'artifacts/ai-graphics' : 'artifacts/ai-game'));
+const command = process.argv[2] ?? 'help';
+const touchContext = ['mobile-test', 'graphics-test'].includes(command) || process.env.AI_GAME_MOBILE === '1';
+const viewport = touchContext ? { width: 844, height: 390 } : { width: 1280, height: 720 };
+const commandArgument = process.argv[3];
+const commandOption = process.argv[4];
+
+// The page defers its ~40 MB load until a real visitor moves a pointer or
+// presses a key (see the boot gate in index.html). This harness drives the page
+// through `globalThis.hijacked` without ever generating input, so it asks for
+// the old load-on-sight behaviour explicitly.
+// AI_GAME_MAP selects a map from export/web/maps.js; the default is Hijacked.
+function autostartUrl(url, { autostart = true } = {}) {
+  const parsed = new URL(url);
+  if (autostart) parsed.searchParams.set('autostart', '1');
+  if (process.env.AI_GAME_MAP) parsed.searchParams.set('map', process.env.AI_GAME_MAP);
+  return String(parsed);
+}
+
+const mimeTypes = new Map([
+  ['.bin', 'application/octet-stream'],
+  ['.glb', 'model/gltf-binary'],
+  ['.gltf', 'model/gltf+json'],
+  ['.html', 'text/html; charset=utf-8'],
+  ['.css', 'text/css; charset=utf-8'],
+  ['.js', 'text/javascript; charset=utf-8'],
+  ['.json', 'application/json; charset=utf-8'],
+  ['.png', 'image/png'],
+  ['.wasm', 'application/wasm'],
+  ['.wav', 'audio/wav'],
+]);
+
+function usage() {
+  return `AI game observer
+
+Usage:
+  npm run ai:game -- state
+  npm run ai:game -- screenshot [weapon|camo]
+  npm run ai:game -- test
+  npm run ai:game -- enemy-test
+  npm run ai:game -- life-test
+  npm run ai:game -- ads-test
+  npm run ai:game -- sniper-test
+  npm run ai:game -- mobile-test
+  npm run ai:game -- graphics-test [fallback]
+  npm run ai:game -- record [seconds] [weapon|sprint|ads]
+
+Environment:
+  AI_GAME_HEADED=1             Show the controlled browser window
+  AI_GAME_MOBILE=1             Use a high-density touch viewport (also for record)
+  AI_GAME_ANGLE=d3d11          Use the Windows GPU instead of default SwiftShader
+  AI_GAME_ARTIFACT_DIR=<path>  Override artifacts/ai-game
+  AI_GAME_WEB_ROOT=<path>      Serve a staged build instead of export/web
+  AI_GAME_MAP=<id>             Load a map from export/web/maps.js (default mp_hijacked)
+  BROWSER_PATH=<path>          Override Chrome or Edge executable
+  BROWSER_TEST_URL=<url>       Use an already-running game server
+`;
+}
+
+function findBrowser() {
+  const candidates = [
+    process.env.BROWSER_PATH,
+    'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+    'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
+    'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+    '/usr/bin/google-chrome',
+    '/usr/bin/microsoft-edge',
+  ].filter(Boolean);
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
+
+async function staticServer() {
+  const server = http.createServer(async (request, response) => {
+    try {
+      const requestUrl = new URL(request.url ?? '/', 'http://127.0.0.1');
+      // The production host serves this through a Netlify function. Keep the
+      // local observer quiet and deterministic instead of letting its optional
+      // title-screen counter create a console 404 on every otherwise-clean run.
+      if (requestUrl.pathname === '/api/plays') {
+        const body = JSON.stringify({ players: 1, plays: 1 });
+        response.writeHead(200, {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Content-Length': Buffer.byteLength(body),
+          'Cache-Control': 'no-store',
+        }).end(body);
+        return;
+      }
+      const relative = decodeURIComponent(requestUrl.pathname === '/' ? '/index.html' : requestUrl.pathname);
+      const filename = path.resolve(webRoot, `.${relative}`);
+      if (filename !== webRoot && !filename.startsWith(`${webRoot}${path.sep}`)) {
+        response.writeHead(403).end('Forbidden');
+        return;
+      }
+      const stat = await fs.promises.stat(filename);
+      if (!stat.isFile()) throw new Error('Not a file');
+      response.writeHead(200, {
+        'Content-Type': mimeTypes.get(path.extname(filename).toLowerCase()) ?? 'application/octet-stream',
+        'Content-Length': stat.size,
+        'Cache-Control': 'no-store',
+      });
+      if (request.method === 'HEAD') response.end();
+      else fs.createReadStream(filename).pipe(response);
+    } catch {
+      response.writeHead(404).end('Not found');
+    }
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const address = server.address();
+  return {
+    url: `http://127.0.0.1:${address.port}/`,
+    close: () => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())),
+  };
+}
+
+async function writeJson(filename, value) {
+  await fs.promises.writeFile(
+    path.join(artifactRoot, filename),
+    `${JSON.stringify(value, null, 2)}\n`,
+    'utf8',
+  );
+}
+
+function distance(a, b) {
+  return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+}
+
+async function run() {
+  if (command === 'help' || command === '--help' || command === '-h') {
+    process.stdout.write(usage());
+    return;
+  }
+  if (!['state', 'screenshot', 'test', 'enemy-test', 'life-test', 'mobile-test', 'graphics-test', 'sniper-test', 'ads-test', 'record'].includes(command)) {
+    throw new Error(`Unknown command: ${command}\n\n${usage()}`);
+  }
+
+  const browserPath = findBrowser();
+  if (!browserPath) throw new Error('Chrome or Edge was not found. Set BROWSER_PATH to its executable.');
+  await fs.promises.mkdir(artifactRoot, { recursive: true });
+
+  const ownedServer = process.env.BROWSER_TEST_URL ? null : await staticServer();
+  const baseUrl = process.env.BROWSER_TEST_URL ?? ownedServer.url;
+  const gameUrl = autostartUrl(baseUrl, { autostart: command !== 'mobile-test' });
+  const consoleMessages = [];
+  const errors = [];
+  const recordSeconds = Math.max(1, Math.min(60, Number(commandArgument) || 5));
+  const videoDirectory = path.join(artifactRoot, 'video');
+  if (command === 'record') await fs.promises.mkdir(videoDirectory, { recursive: true });
+
+  let browser;
+  let context;
+  let page;
+  let traceStarted = false;
+  let video;
+  let result;
+  let failure;
+  let inputProbe = null;
+  let startupChecks = {};
+
+  try {
+    browser = await chromium.launch({
+      executablePath: browserPath,
+      headless: process.env.AI_GAME_HEADED !== '1',
+      args: [
+        '--enable-webgl',
+        '--ignore-gpu-blocklist',
+        `--use-angle=${process.env.AI_GAME_ANGLE ?? 'swiftshader'}`,
+        '--disable-background-timer-throttling',
+        '--disable-renderer-backgrounding',
+        '--disable-backgrounding-occluded-windows',
+      ],
+    });
+    context = await browser.newContext({
+      viewport,
+      ...(touchContext ? { isMobile: true, hasTouch: true, deviceScaleFactor: command === 'mobile-test' ? 1 : 2 } : {}),
+      ...(command === 'record' ? { recordVideo: { dir: videoDirectory, size: viewport } } : {}),
+    });
+    page = await context.newPage();
+    video = page.video();
+    if (touchContext) {
+      await page.route('**/api/plays', route => route.fulfill({ contentType: 'application/json', body: '{"players":1,"plays":1}' }));
+    }
+    if (command === 'graphics-test' && commandArgument === 'fallback') {
+      await page.addInitScript(() => {
+        const original = WebGL2RenderingContext.prototype.getInternalformatParameter;
+        WebGL2RenderingContext.prototype.getInternalformatParameter = function(target, format, pname) {
+          if (format === this.RGBA16F && pname === this.SAMPLES) return new Int32Array();
+          return original.call(this, target, format, pname);
+        };
+      });
+    }
+
+    page.on('console', (message) => {
+      const entry = `[console:${message.type()}] ${message.text()}`;
+      consoleMessages.push(entry);
+      if (message.type() === 'error') errors.push(entry);
+    });
+    page.on('pageerror', (error) => {
+      const entry = `[pageerror] ${error.stack ?? error.message}`;
+      consoleMessages.push(entry);
+      errors.push(entry);
+    });
+    page.on('requestfailed', (request) => {
+      const entry = `[requestfailed] ${request.url()} ${request.failure()?.errorText ?? ''}`;
+      consoleMessages.push(entry);
+      errors.push(entry);
+    });
+
+    if (command === 'mobile-test') {
+      startupChecks = await runMobileStartup(page, artifactRoot, gameUrl);
+    } else {
+      const response = await page.goto(gameUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      if (!response?.ok()) throw new Error(`Game returned HTTP ${response?.status() ?? 'unknown'}`);
+    }
+    await page.waitForFunction(
+      () => globalThis.hijacked?.debug?.getState().ready === true,
+      null,
+      { timeout: 180_000 },
+    );
+
+    // Boot loads only the equipped rifle; the rest are fetched when a player
+    // opens the class screen. Nothing here opens it, so ask for them directly
+    // or `screenshot <weapon>` finds only one entry in availableWeapons.
+    await page.evaluate(() => globalThis.hijacked.debug.loadAllWeapons());
+
+    // Record the encounter after asset loading; embedding every large binary
+    // transfer adds hundreds of MB and obscures the input/rendering evidence.
+    await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
+    traceStarted = true;
+
+    await page.evaluate(() => {
+      globalThis.hijacked.debug.setActive(true);
+      globalThis.hijacked.debug.resume();
+    });
+    await page.waitForTimeout(300);
+    await page.evaluate(() => globalThis.hijacked.debug.pause());
+    const before = await page.evaluate(() => globalThis.hijacked.debug.getState());
+    await writeJson('before-state.json', before);
+    await page.screenshot({ path: path.join(artifactRoot, 'before.png') });
+
+    if (command === 'ads-test') {
+      inputProbe = await runAdsTest(page, artifactRoot);
+    } else if (command === 'sniper-test') {
+      inputProbe = await runSniperTest(page, artifactRoot);
+    } else if (command === 'mobile-test') {
+      inputProbe = await runMobileTest(page, artifactRoot);
+    } else if (command === 'graphics-test') {
+      inputProbe = await runGraphicsTest(page, artifactRoot, commandArgument === 'fallback');
+    } else if (command === 'screenshot' && commandArgument) {
+      const options = await page.evaluate(() => globalThis.hijacked.debug.getState().weapon);
+      if (options.availableWeapons.includes(commandArgument)) {
+        const selected = await page.evaluate(
+          (name) => globalThis.hijacked.debug.selectWeapon(name),
+          commandArgument,
+        );
+        if (selected !== commandArgument) throw new Error(`Could not select weapon: ${commandArgument}`);
+        inputProbe = { weapon: selected, input: 'debug' };
+      } else {
+        const camos = options.availableCamos;
+        if (!camos.includes(commandArgument)) throw new Error(`Unknown weapon or camo: ${commandArgument}`);
+        await page.evaluate((name) => globalThis.hijacked.debug.setWeaponCamo(name), camos[0]);
+        for (let i = 0; i < camos.length; i += 1) {
+          const selected = await page.evaluate(() => globalThis.hijacked.debug.getState().weapon.camo);
+          if (selected === commandArgument) break;
+          await page.keyboard.press('k');
+        }
+        const selected = await page.evaluate(() => globalThis.hijacked.debug.getState().weapon.camo);
+        if (selected !== commandArgument) throw new Error(`Could not select weapon camo: ${commandArgument}`);
+        inputProbe = { camo: selected, input: 'keyboard' };
+      }
+    } else if (command === 'test') {
+      await page.evaluate(() => globalThis.hijacked.debug.resume());
+      await page.keyboard.down('w');
+      // Wall time can contain only a handful of frames under SwiftShader.
+      // Keep real keyboard input held until the physics has actually moved.
+      await page.waitForFunction((origin) => {
+        const feet = globalThis.hijacked.debug.getState().player.feet;
+        return Math.hypot(...feet.map((value, i) => value - origin[i])) > 20;
+      }, before.player.feet, { timeout: 20000 });
+      await page.keyboard.up('w');
+      await page.evaluate(() => {
+        globalThis.__aiMouseProbe = [];
+        for (const type of ['mousedown', 'mouseup']) {
+          document.addEventListener(type, (event) => {
+            globalThis.__aiMouseProbe.push({
+              type,
+              button: event.button,
+              triggerHeld: globalThis.hijacked.weapon.triggerHeld,
+              active: globalThis.hijacked.debug.getState().active,
+              paused: globalThis.hijacked.debug.getState().paused,
+            });
+          });
+        }
+      });
+      const canvas = await page.locator('canvas').boundingBox();
+      await page.mouse.move(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);
+      await page.mouse.down({ button: 'left' });
+      await page.evaluate(() => new Promise((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(resolve));
+      }));
+      await page.mouse.up({ button: 'left' });
+      inputProbe = await page.evaluate(() => globalThis.__aiMouseProbe);
+      await page.evaluate(() => globalThis.hijacked.debug.pause());
+    } else if (command === 'enemy-test') {
+      const staged = await page.evaluate(() => {
+        const api = globalThis.hijacked;
+        const feet = api.player.feetPosition;
+        const offsets = [
+          [-500, -180], [-570, -105], [-520, -35],
+          [-590, 40], [-510, 115], [-600, 185],
+        ];
+        const positions = offsets.map(([x, z], index) =>
+          api.debug.teleportEnemy(index, [feet.x + x, feet.y, feet.z + z]));
+        const first = api.enemies.enemies[0].eyePosition();
+        api.debug.lookAt([first.x, first.y - 12, first.z]);
+        const alerted = api.debug.alertEnemies(2000);
+        api.debug.resume();
+        return { positions, alerted };
+      });
+      await page.waitForTimeout(4500);
+      await page.evaluate(() => globalThis.hijacked.debug.pause());
+      inputProbe = { staged };
+    } else if (command === 'life-test') {
+      inputProbe = await page.evaluate(() => {
+        const before = globalThis.hijacked.debug.getState();
+        globalThis.hijacked.debug.setWeaponAmmo(3, 4);
+        globalThis.hijacked.debug.resume();
+        globalThis.hijacked.debug.damagePlayer(1000);
+        return { before };
+      });
+      await page.waitForTimeout(250);
+      inputProbe.dead = await page.evaluate(() => globalThis.hijacked.debug.getState());
+      await page.screenshot({ path: path.join(artifactRoot, 'death.png') });
+      // Headless SwiftShader can deliver far fewer animation frames than wall
+      // time while screenshots are being encoded, so wait on game state.
+      await page.waitForFunction(
+        () => globalThis.hijacked.debug.getState().player.dead === false,
+        null,
+        { timeout: 20_000 },
+      );
+      await page.evaluate(() => globalThis.hijacked.debug.pause());
+    } else if (command === 'record' && commandOption === 'ads') {
+      const started = Date.now();
+      inputProbe = await runAdsTest(page, artifactRoot, { weaponIds: ['m27', 'fiveseven'] });
+      await page.waitForTimeout(Math.max(0, recordSeconds * 1000 - (Date.now() - started)));
+    } else if (command === 'record') {
+      const sprintProbe = commandOption === 'sprint';
+      const recordWeapon = sprintProbe ? 'scar' : commandOption;
+      if (recordWeapon) {
+        const selected = await page.evaluate(
+          (name) => globalThis.hijacked.debug.selectWeapon(name),
+          recordWeapon,
+        );
+        if (selected !== recordWeapon) throw new Error(`Could not select weapon: ${recordWeapon}`);
+      }
+      if (sprintProbe) {
+        await page.mouse.move(640, 40);
+        await page.evaluate(() => {
+          const debug = globalThis.hijacked.debug;
+          debug.setEnemiesActive(false);
+          const eye = debug.getState().player.eye;
+          debug.lookAt([eye[0] - 1000, eye[1], eye[2]]);
+        });
+      }
+      await page.evaluate(() => globalThis.hijacked.debug.resume());
+      await page.keyboard.down('w');
+      let fireMilliseconds = 0;
+      if (sprintProbe) {
+        await page.keyboard.down('Shift');
+        await page.waitForTimeout(750);
+        await page.screenshot({ path: path.join(artifactRoot, 'sprint-forward.png') });
+        await page.mouse.move(640, 690, { steps: 12 });
+        const down = await page.evaluate(() => globalThis.hijacked.debug.getState());
+        await writeJson('sprint-down-state.json', down);
+        await page.screenshot({ path: path.join(artifactRoot, 'sprint-down.png') });
+        inputProbe = { checks: {
+          sprinting: down.weapon.sprinting,
+          lookingDown: down.player.forward[1] < -0.9,
+        } };
+        fireMilliseconds = 1000;
+      } else if (commandOption) {
+        fireMilliseconds = Math.min(750, recordSeconds * 500);
+        await page.mouse.down({ button: 'left' });
+        await page.waitForTimeout(fireMilliseconds);
+        await page.mouse.up({ button: 'left' });
+        await page.keyboard.press('r');
+      }
+      await page.waitForTimeout(Math.max(0, recordSeconds * 1000 - fireMilliseconds));
+      await page.keyboard.up('w');
+      if (sprintProbe) await page.keyboard.up('Shift');
+      await page.evaluate(() => globalThis.hijacked.debug.pause());
+    }
+
+    const state = await page.evaluate(() => globalThis.hijacked.debug.getState());
+    await writeJson('state.json', state);
+    await page.screenshot({ path: path.join(artifactRoot, 'screenshot.png') });
+
+    const checks = ['mobile-test', 'graphics-test', 'sniper-test', 'ads-test'].includes(command) ? {
+      ...startupChecks,
+      ...inputProbe.checks,
+      noBrowserErrors: errors.length === 0,
+    } : command === 'test' ? {
+      ready: state.ready === true,
+      playerMoved: distance(before.player.feet, state.player.feet) > 10,
+      weaponFired: state.weapon.fireCount > before.weapon.fireCount,
+      ammoDecreased: state.weapon.magazine < before.weapon.magazine,
+      sixEnemiesLoaded: state.enemies.length === 6,
+      noBrowserErrors: errors.length === 0,
+    } : command === 'enemy-test' ? {
+      ready: state.ready === true,
+      sixEnemiesStaged: inputProbe.staged.positions.every(Boolean),
+      squadAlerted: inputProbe.staged.alerted === 6,
+      tacticalStatesActive: state.enemies.some((enemy) =>
+        ['attack', 'reposition', 'chase', 'search'].includes(enemy.state)),
+      artificialFiringLimitRemoved: state.enemies
+        .filter((enemy) => enemy.shotsFired > 0).length >= 3,
+      playerSurvivedEncounter: state.player.dead === false,
+      squadUsesMultipleTargets: new Set(state.enemies
+        .map((enemy) => JSON.stringify(enemy.combatTarget))
+        .filter((target) => target !== 'null')).size > 1,
+      noBrowserErrors: errors.length === 0,
+    } : command === 'life-test' ? {
+      deathStateVisible: inputProbe.dead.player.dead === true && inputProbe.dead.player.respawnSeconds > 0,
+      deathRecorded: state.match.standings.find((entry) => entry.id === 'player')?.deaths === 1,
+      playerRespawned: state.player.dead === false && state.player.health === state.player.maxHealth,
+      loadoutRestored: state.weapon.magazine === state.weapon.magazineSize && state.weapon.reserveAmmo === 240,
+      safeSpawnChanged: distance(inputProbe.before.player.feet, state.player.feet) > 100,
+      noBrowserErrors: errors.length === 0,
+    } : {
+      ...(inputProbe?.checks ?? {}),
+      ready: state.ready === true,
+      playerAvailable: Boolean(state.player),
+      sixEnemiesLoaded: state.enemies.length === 6,
+      noBrowserErrors: errors.length === 0,
+    };
+    result = {
+      command,
+      passed: Object.values(checks).every(Boolean),
+      checks,
+      errors,
+      ...(inputProbe ? { inputProbe } : {}),
+      artifacts: artifactRoot,
+      ...(command === 'record' ? { seconds: recordSeconds } : {}),
+    };
+    await writeJson('report.json', result);
+  } catch (error) {
+    failure = error;
+    errors.push(`[harness] ${error.stack ?? error.message}`);
+    if (page && !page.isClosed()) {
+      const failedState = await page.evaluate(() => globalThis.hijacked?.debug?.getState()).catch(() => null);
+      if (failedState) await writeJson('failure-state.json', failedState);
+      await page.screenshot({ path: path.join(artifactRoot, 'failure.png'), timeout: 10000 }).catch(() => {});
+    }
+    result = { command, passed: false, errors, artifacts: artifactRoot };
+    await writeJson('report.json', result);
+  } finally {
+    await fs.promises.writeFile(
+      path.join(artifactRoot, 'console.log'),
+      `${consoleMessages.join('\n')}${consoleMessages.length ? '\n' : ''}`,
+      'utf8',
+    );
+    if (traceStarted) {
+      try {
+        await context.tracing.stop({ path: path.join(artifactRoot, 'trace.zip') });
+      } catch (error) {
+        errors.push(`[trace] ${error.message}`);
+      }
+    }
+    if (page && !page.isClosed()) await page.close();
+    if (command === 'record' && video) {
+      try {
+        const recordedPath = await video.path();
+        await fs.promises.copyFile(recordedPath, path.join(artifactRoot, 'recording.webm'));
+      } catch (error) {
+        errors.push(`[video] ${error.message}`);
+      }
+    }
+    await context?.close().catch(() => {});
+    await browser?.close().catch(() => {});
+    await ownedServer?.close().catch(() => {});
+  }
+
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  if (failure || !result?.passed) process.exitCode = 1;
+}
+
+run().catch((error) => {
+  process.stderr.write(`${error.stack ?? error.message}\n`);
+  process.exitCode = 1;
+});

@@ -1,0 +1,31 @@
+# Netlify build settings for the git-connected deploy.
+#
+# The site was set up as a plain static publish with its base directory set to
+# `export/web`, which is why it needed no config file at all until now. A
+# function changes that: everything resolves relative to the base, so with the
+# base inside `export/web` the function directory, the root `package.json` that
+# provides its one dependency, and the publish directory itself all land in the
+# wrong place -- `export/web/export/web` in the case of the publish directory.
+#
+# So the base moves to the repository root and the three paths are stated from
+# there. Settings here override the ones in the Netlify UI.
+
+[build]
+  base = ""
+  publish = "export/web"
+  # `export/web` is also the bake workspace, so the publish dir carried ~108 MB
+  # of build inputs -- the source .gltf/.bin the map is baked from and the 359
+  # source PNGs already embedded in the .glb as KTX2. Nothing fetches them;
+  # crawlers pulled them anyway. This strips them from the upload only.
+  command = ".tools/prune-deploy.sh"
+
+[build.environment]
+  # @netlify/blobs 11 requires Node >= 22.12, and a site keeps whatever default
+  # Node it was created with. With the base at the root there is now a real
+  # dependency install, so the version has to be said out loud.
+  NODE_VERSION = "22"
+
+# `plays.mjs` backs the title-screen play counter and declares its own route
+# (`/api/plays`) through the v2 `config` export, so there are no redirects here.
+[functions]
+  directory = "netlify/functions"
