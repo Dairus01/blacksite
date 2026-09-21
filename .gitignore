@@ -10,6 +10,8 @@
 !/LICENSE
 !/README.md
 !/SECURITY.md
+!/docs/
+!/docs/**
 !/package.json
 !/package-lock.json
 !/netlify.toml
@@ -39,6 +41,8 @@
 !/.tools/stage_cloudflare.mjs
 !/.tools/split_glb.mjs
 !/.tools/perf_probe.mjs
+!/.tools/404-jam.mjs
+!/.tools/404-game-recipe.LICENSE
 !/.tools/xanim_to_json.mjs
 !/.tools/extract_t6_sab_audio.mjs
 !/.tools/dump_soundbanks.mjs
