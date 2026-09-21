@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import { chromium } from 'playwright-core';
 
 // BROWSER_PATH overrides the search, as it does for .tools/ai-game.mjs.
@@ -14,6 +15,7 @@ const browserPath = [
   '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
   '/usr/bin/google-chrome',
 ].filter(Boolean).find((candidate) => fs.existsSync(candidate));
+const browserAngle = process.env.BROWSER_TEST_ANGLE;
 // The page defers its ~40 MB load until a real visitor moves a pointer or
 // presses a key (see the boot gate in index.html). These harnesses drive the
 // page through `globalThis.hijacked` without ever generating input, so they ask
@@ -24,11 +26,59 @@ function autostartUrl(url) {
   return String(parsed);
 }
 
-const browserTestUrl = autostartUrl(process.env.BROWSER_TEST_URL ?? 'http://127.0.0.1:8000/');
-// The same page with the gate left in place, for the test that covers it.
-const uninteractedUrl = process.env.BROWSER_TEST_URL ?? 'http://127.0.0.1:8000/';
+const webRoot = path.resolve(process.cwd(), 'export/web');
+const mimeTypes = new Map([
+  ['.bin', 'application/octet-stream'], ['.css', 'text/css; charset=utf-8'],
+  ['.flac', 'audio/flac'], ['.glb', 'model/gltf-binary'], ['.html', 'text/html; charset=utf-8'],
+  ['.js', 'text/javascript; charset=utf-8'], ['.json', 'application/json'],
+  ['.ktx2', 'image/ktx2'], ['.mp3', 'audio/mpeg'], ['.png', 'image/png'],
+  ['.wasm', 'application/wasm'], ['.wav', 'audio/wav'], ['.webp', 'image/webp'],
+]);
 
-test('Hijacked viewer loads collision, navigation, and walking controls', { timeout: 240_000 }, async () => {
+async function staticServer() {
+  const server = http.createServer(async (request, response) => {
+    try {
+      const requestUrl = new URL(request.url ?? '/', 'http://127.0.0.1');
+      const relative = decodeURIComponent(requestUrl.pathname === '/' ? '/index.html' : requestUrl.pathname);
+      const filename = path.resolve(webRoot, `.${relative}`);
+      if (filename !== webRoot && !filename.startsWith(`${webRoot}${path.sep}`)) {
+        response.writeHead(403).end('Forbidden');
+        return;
+      }
+      const stat = await fs.promises.stat(filename);
+      if (!stat.isFile()) throw new Error('Not a file');
+      response.writeHead(200, {
+        'Content-Type': mimeTypes.get(path.extname(filename).toLowerCase()) ?? 'application/octet-stream',
+        'Content-Length': stat.size,
+        'Cache-Control': 'no-store',
+      });
+      fs.createReadStream(filename).pipe(response);
+    } catch {
+      response.writeHead(404).end('Not found');
+    }
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  return {
+    url: `http://127.0.0.1:${server.address().port}/`,
+    close: () => new Promise((resolve) => {
+      server.closeIdleConnections?.();
+      server.closeAllConnections?.();
+      server.close(resolve);
+    }),
+  };
+}
+
+const ownedServer = process.env.BROWSER_TEST_URL ? null : await staticServer();
+after(async () => ownedServer?.close());
+const baseUrl = process.env.BROWSER_TEST_URL ?? ownedServer.url;
+const browserTestUrl = autostartUrl(baseUrl);
+// The same page with the gate left in place, for the test that covers it.
+const uninteractedUrl = baseUrl;
+
+test('Hijacked viewer loads collision, navigation, and walking controls', { timeout: 600_000 }, async () => {
   assert.ok(browserPath, 'Chrome or Edge is required for the browser smoke test');
   const browser = await chromium.launch({
     executablePath: browserPath,
@@ -36,7 +86,7 @@ test('Hijacked viewer loads collision, navigation, and walking controls', { time
     args: [
       '--enable-webgl',
       '--ignore-gpu-blocklist',
-      '--use-angle=swiftshader',
+      ...(browserAngle ? [`--use-angle=${browserAngle}`] : []),
       '--disable-background-timer-throttling',
       '--disable-renderer-backgrounding',
       '--disable-backgrounding-occluded-windows',
@@ -71,7 +121,10 @@ test('Hijacked viewer loads collision, navigation, and walking controls', { time
       timeout: 30_000,
     });
     assert.equal(response?.status(), 200);
-    await page.locator('#blocker.ready').waitFor({ state: 'visible', timeout: 150_000 });
+    // SwiftShader can spend several minutes compiling the map and enemy pose
+    // variants on a busy CI host; readiness remains a state assertion rather
+    // than a fixed sleep, and the functional checks below are unchanged.
+    await page.locator('#blocker.ready').waitFor({ state: 'visible', timeout: 240_000 });
     // The shell uppercases its prompt through text-transform, so innerText
     // returns the rendered casing rather than the authored casing.
     const instructions = await page.locator('#blocker').innerText();
@@ -312,6 +365,8 @@ test('Hijacked viewer loads collision, navigation, and walking controls', { time
     // on the gun.
     const magazines = await page.evaluate(async () => {
       const api = globalThis.hijacked;
+      api.debug.setEnemiesActive(false);
+      api.debug.setActive(true);
       const drawn = (node) => {
         for (let n = node; n; n = n.parent) if (!n.visible) return false;
         return true;
@@ -338,7 +393,9 @@ test('Hijacked viewer loads collision, navigation, and walking controls', { time
           if (!empty && !fresh) neither += 1;
         }, 20);
       });
-      return { started, both, neither, endedSeated: drawn(seated) && !drawn(vm.spareMagazine) };
+      const result = { started, both, neither, endedSeated: drawn(seated) && !drawn(vm.spareMagazine) };
+      api.debug.setActive(false);
+      return result;
     });
     assert.equal(magazines.started, true, 'the sig556 should reload on demand');
     assert.equal(magazines.both, 0, 'the sig556 drew two magazines at once');
@@ -350,18 +407,33 @@ test('Hijacked viewer loads collision, navigation, and walking controls', { time
     assert.deepEqual((await page.evaluate(() => globalThis.hijacked.debug.getState().weapon.availableWeapons)), [...weaponIds, ...sniperIds, ...pistolIds]);
     // Snipers: the world zooms to the file's FOV, the rig leaves the view
     // behind the overlay, and a bolt-action cannot fire until it rechambers.
-    const sniper = await page.evaluate(async () => {
+    const hipFov = await page.evaluate(async () => {
       const api = globalThis.hijacked;
       const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
-      const step = async (n) => { for (let i = 0; i < n; i += 1) await frame(); };
+      api.debug.setEnemiesActive(false);
+      api.debug.setActive(true);
       api.debug.selectWeapon('dsr50');
-      await step(2);
-      const hipFov = api.camera.fov;
-      api.viewmodel.setAiming(true);
-      await step(90);
+      await frame();
+      await frame();
+      return api.camera.fov;
+    });
+    await page.mouse.down({ button: 'right' });
+    await page.waitForFunction(() => {
+      const api = globalThis.hijacked;
+      return api.debug.getState().weapon.scoped && api.camera.fov <= 15.01;
+    }, null, { timeout: 10_000 });
+    const scopedPresentation = await page.evaluate(() => {
+      const api = globalThis.hijacked;
+      return {
+        scoped: api.debug.getState().weapon,
+        overlayOn: document.getElementById('scope').dataset.on,
+        rigHidden: !api.viewmodel.root.visible,
+      };
+    });
+    const shot = await page.evaluate(async () => {
+      const api = globalThis.hijacked;
+      const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
       const scoped = api.debug.getState().weapon;
-      const overlayOn = document.getElementById('scope').dataset.on;
-      const rigHidden = !api.viewmodel.root.visible;
       // Fire through the controller, as the firing checks below do: the tick's
       // own fire gate is closed while the harness drives the page.
       api.weapon.setTrigger(true);
@@ -373,15 +445,23 @@ test('Hijacked viewer loads collision, navigation, and walking controls', { time
         rechambered = api.viewmodel.rechambering;
       }
       const blockedWhileRechambering = rechambered && api.weapon.update(1 / 120, { canFire: !api.viewmodel.rechambering }) === 0;
-      await step(60);
+      for (let i = 0; i < 120 && api.viewmodel.rechambering; i += 1) await frame();
       const afterShot = api.debug.getState().weapon;
-      api.viewmodel.setAiming(false);
-      await step(90);
+      return { scoped, fired, rechambered, blockedWhileRechambering, afterShot };
+    });
+    await page.mouse.up({ button: 'right' });
+    await page.waitForFunction(() => {
+      const api = globalThis.hijacked;
+      return !api.debug.getState().weapon.scoped && api.camera.fov >= 74.99;
+    }, null, { timeout: 10_000 });
+    const loweredPresentation = await page.evaluate(() => {
+      const api = globalThis.hijacked;
       const lowered = api.debug.getState().weapon;
       api.debug.selectWeapon('m27');
-      await step(2);
-      return { hipFov, scoped, overlayOn, rigHidden, fired, rechambered, blockedWhileRechambering, afterShot, lowered, overlayOff: document.getElementById('scope').dataset.on };
+      api.debug.setActive(false);
+      return { lowered, overlayOff: document.getElementById('scope').dataset.on };
     });
+    const sniper = { hipFov, ...scopedPresentation, ...shot, ...loweredPresentation };
     assert.equal(sniper.hipFov, 75);
     assert.equal(sniper.scoped.scoped, true, `the DSR 50 should be scoped after its raise: ${JSON.stringify(sniper.scoped)}`);
     assert.equal(sniper.scoped.fov, 15, 'the world zooms to the weapon file adsZoomFov');
@@ -1027,7 +1107,7 @@ test('Hijacked viewer loads collision, navigation, and walking controls', { time
       const muzzleAfter = viewmodel.muzzlePosition();
       viewmodel.onNotetrack = originalNotetrack;
       api.weaponEffects.playFoley = originalFoley;
-      return {
+      const result = {
         started,
         mid,
         done: !viewmodel.reloading,
@@ -1046,6 +1126,10 @@ test('Hijacked viewer loads collision, navigation, and walking controls', { time
           : null,
         magRestQuat: clip ? clip.quaternion.toArray().map((n) => Number(n.toFixed(3))) : null,
       };
+      // Freeze autonomous firing after the animation probe so the HUD sample
+      // below observes the completed reload rather than a later combat frame.
+      api.debug.pause();
+      return result;
     });
     assert.equal(reload.started, true, 'reload should start on demand');
     assert.equal(reload.mid, true, 'reload should be in progress');
@@ -1105,6 +1189,9 @@ test('Hijacked viewer loads collision, navigation, and walking controls', { time
       && Math.abs(reload.magRestQuat[3] - 0.7071) < 0.01,
       `the magazine must rest upright, not flipped: ${JSON.stringify(reload.magRestQuat)}`);
 
+    await page.waitForFunction(() => /ammo 30\/\d+/.test(document.getElementById('hud')?.innerText ?? ''), null, {
+      timeout: 2_000,
+    });
     const hud = await page.locator('#hud').innerText();
     assert.match(hud, /nav shown/);
     assert.match(hud, /collision shown/);
@@ -1128,7 +1215,7 @@ test('the map payload waits for a sign of a real visitor', { timeout: 120_000 },
   const browser = await chromium.launch({
     executablePath: browserPath,
     headless: true,
-    args: ['--enable-webgl', '--ignore-gpu-blocklist', '--use-angle=swiftshader'],
+    args: ['--enable-webgl', '--ignore-gpu-blocklist', ...(browserAngle ? [`--use-angle=${browserAngle}`] : [])],
   });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   await page.route('**/api/plays', (route) => route.fulfill({
