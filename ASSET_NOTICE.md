@@ -1,5 +1,7 @@
 # Asset rights and project status
 
+The active judged game is **Breach Zero** at `export/web/jam/`. The legacy FPS in the repository root is retained only as an engineering reference and is not part of the judged static folder. Its historical third-party material must not be confused with the assets used by Breach Zero.
+
 Claude of Duty is an unofficial, non-commercial fan project. It is not
 affiliated with, endorsed by, or sponsored by Activision, Treyarch, Microsoft,
 Anthropic, or any of their subsidiaries or partners.
@@ -27,6 +29,8 @@ advisory or the contact options on
 The `export/web/jam` judged build does not load the legacy third-party 3D game
 assets described above. Its environment, characters, weapons, props, and effects
 are constructed at runtime from authored Three.js primitives.
+
+`export/web/jam/briefing-blacksite.webp` is an original AI-generated 2D mission-briefing illustration created for this project and converted to WebP. It is used only as interface artwork; no image-derived mesh or geometry is loaded. The other game audio effects are synthesized at runtime through Web Audio oscillators.
 
 The jam interface embeds Barlow Condensed, Copyright 2017 The Barlow Project
 Authors, licensed under the SIL Open Font License 1.1. The license text is in

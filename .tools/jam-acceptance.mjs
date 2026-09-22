@@ -49,18 +49,16 @@ try {
   await page.waitForFunction(() => window.__READY__ === true, null, { timeout: 10_000 });
   const initial = await page.evaluate(() => window.__GAME__);
   assert.equal(initial.missionPhase, 'deploy');
-  assert.equal(initial.enemyCount, 1);
+  assert.equal(initial.level, 1);
+  assert.equal(initial.enemyCount, 0);
   assert.ok(initial.draws > 0 && initial.tris > 0);
 
   await page.locator('#startb').click();
   await page.waitForFunction(() => window.__GAME__.started && window.__GAME__.missionPhase === 'active');
-  for (let i = 0; i < 4; i += 1) {
-    await page.mouse.down({ button: 'left' });
-    await page.waitForTimeout(80);
-    await page.mouse.up({ button: 'left' });
-    await page.waitForTimeout(100);
-  }
-  await page.waitForFunction(() => window.__GAME__.enemyCount === 0 && window.__GAME__.missionPhase === 'intel', null, { timeout: 5_000 });
+  await page.mouse.down({ button: 'left' });
+  await page.waitForTimeout(1400);
+  await page.mouse.up({ button: 'left' });
+  await page.waitForFunction(() => window.__GAME__.kills >= 2, null, { timeout: 5_000 });
 
   await page.keyboard.down('KeyW');
   await page.waitForFunction(() => window.__GAME__.intelCount === 1 && window.__GAME__.extractionActive, null, { timeout: 7_000 });
@@ -76,16 +74,24 @@ try {
   await page.keyboard.up('KeyW');
 
   const final = await page.evaluate(() => window.__GAME__);
-  assert.equal(final.enemyCount, 0);
+  assert.equal(final.kills, 2);
   assert.equal(final.intelCount, 1);
   assert.equal(final.over, true);
-  assert.ok(final.score >= 650);
+  assert.ok(final.score >= 775);
   assert.ok(final.shots >= 2 && final.hits >= 2);
   assert.ok(final.draws < 900 && final.tris < 1_500_000);
   assert.deepEqual(errors, []);
   assert.deepEqual(missing, []);
   await page.screenshot({ path: path.join(out, 'complete.png') });
   fs.writeFileSync(path.join(out, 'state.json'), JSON.stringify(final, null, 2));
+  assert.equal(await page.locator('#upgrade-choices button').count(), 3);
+  await page.locator('#upgrade-choices button').first().click();
+  await page.locator('#again').click();
+  await page.waitForFunction(() => window.__GAME__.level === 2 && window.__GAME__.missionPhase === 'active');
+  const next = await page.evaluate(() => window.__GAME__);
+  assert.equal(next.mode, 'assault');
+  assert.equal(next.kills, 0);
+  assert.equal(Object.keys(next.upgrades).length, 1);
   console.log(JSON.stringify({ passed: true, checks: { started: true, killed: true, intel: true, extracted: true, errors: 0, missing: 0 }, state: final }, null, 2));
 } finally {
   await browser.close();
