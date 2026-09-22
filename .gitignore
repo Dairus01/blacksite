@@ -9,6 +9,7 @@
 !/CITATION.cff
 !/LICENSE
 !/README.md
+!/PRODUCT.md
 !/SECURITY.md
 !/docs/
 !/docs/**
@@ -42,7 +43,11 @@
 !/.tools/split_glb.mjs
 !/.tools/perf_probe.mjs
 !/.tools/404-jam.mjs
+!/.tools/404-ship.mjs
 !/.tools/404-game-recipe.LICENSE
+!/.tools/jam-acceptance.mjs
+!/.impeccable/
+!/.impeccable/design.json
 !/.tools/xanim_to_json.mjs
 !/.tools/extract_t6_sab_audio.mjs
 !/.tools/dump_soundbanks.mjs
@@ -66,6 +71,7 @@
 !/export/
 !/export/web/
 !/export/web/**
+/export/web/jam/assets404/_verify/
 !/export/xmodel/
 !/export/xmodel/*.json
 !/export/xmodel/mlv/
