@@ -27,10 +27,11 @@ The game is loaded from a static folder and evaluated under simulated mobile 4G,
 - Judged entry point: `export/web/jam/`; legacy GLB content remains outside it and is never imported.
 - Every judged 3D object is constructed in JavaScript from Three.js geometry.
 - No imported models, mesh files, literal vertex dumps, base64 geometry, or runtime API endpoints.
-- Initial loop: start, move, aim, shoot, kill one enemy, collect one intel pickup, reach extraction.
+- Milestone 1 loop: deploy, breach the checkpoint, survive an armed hostile, recover the uplink key, and extract; health, death, checkpoint restart, reserve ammunition, reload, ADS, jumping, and authored stair traversal are real gameplay states.
+- Desktop and touch controls drive the same simulation. Touch provides simultaneous move, look, fire, ADS, reload, and jump input rather than a reduced test path.
 - Hard budgets: ready within 20 seconds, at most 10 MB response bodies, at most 900 draws, at most 1.5 million triangles, at least one metre of real movement, and zero non-favicon 404s or console errors.
 - Working targets: ready within 8 seconds, at most 3 MB initial transfer, at most 400 draws, and at most 500,000 triangles.
-- Required truthful globals: `window.__READY__`, `window.__START__`, and continuously refreshed `window.__GAME__`.
+- Required truthful globals: `window.__READY__`, `window.__START__`, and continuously refreshed `window.__GAME__`; telemetry must report actual motion, render cost, combat, weapon, enemy, survival, and mission state.
 
 ## Brand Commitments
 
@@ -46,6 +47,7 @@ The temporary internal identifier is `breach-zero`. The final public title remai
 ## Product Principles
 
 - Real interaction and truthful state over test-only shortcuts.
+- A visible mechanic is not complete until gameplay, feedback, telemetry, and an automated assertion all agree on its state.
 - One legible objective at a time.
 - Procedural silhouettes with disciplined material and scale consistency.
 - Preserve reusable engineering concepts, not incompatible content.
