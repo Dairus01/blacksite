@@ -47,6 +47,15 @@ try {
   assert.equal(snapshot.mode, 'hold');
   assert.equal(snapshot.weapon, 'KESTREL-9');
   await page.screenshot({ path: path.join(out, 'drydock.png') });
+  await page.keyboard.press('Digit3');
+  await page.waitForFunction(() => window.__GAME__.weapon === 'BR-12');
+  await page.mouse.down({ button: 'left' });
+  await page.waitForTimeout(100);
+  await page.mouse.up({ button: 'left' });
+  await page.keyboard.press('KeyR');
+  await page.waitForFunction(() => window.__GAME__.reloading);
+  await page.screenshot({ path: path.join(out, 'shotgun-reload.png') });
+  await page.waitForFunction(() => !window.__GAME__.reloading, null, { timeout: 5000 });
   await page.keyboard.press('Digit5');
   await page.waitForFunction(() => window.__GAME__.weapon === 'ATLAS-56');
   await page.keyboard.press('KeyC');

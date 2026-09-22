@@ -10,7 +10,7 @@ The previous jam build proved the asset contract and official gate but offered o
 - `src/arsenal.js` defines five weapon stat profiles and six upgrade modifiers without modifying shared weapon definitions.
 - `src/variant-arena.js` adds DRYDOCK, QUARRY, and SUBSTATION to the existing BLACKSITE. Every solid 3D item is composed from Three.js geometry. Each site provides terrain, cover, spawns, collision, a twelve-tread staircase, a raised deck, and extraction.
 - `src/main-v2.js` owns the runtime simulation: input, camera, enemy wave pressure, hits, intel, Commander, extraction, scoring, results, restart, and truthful `__GAME__` telemetry.
-- `assets404/rifle.js` shares a detailed procedural rig across five visibly different weapon variants. `assets404/soldier.js` provides articulated hostile and player-avatar figures.
+- `assets404/rifle.js` shares a procedural firing rig across five weapon variants, with code-authored suppressor, shotgun tube/shell loading, marksman optic, and LMG bipod/ammunition details. `assets404/soldier.js` provides articulated hostile and player-avatar figures with speed-driven gait and human facial features.
 - `index.html` and `style.css` provide the narrative briefing, level/loadout selector, field guide, pause menu, HUD, touch controls, boss bar, results, and upgrades. The briefing background is original AI-generated 2D art, compressed to WebP. It is not a 3D asset.
 
 ## Discarded approaches
@@ -23,7 +23,7 @@ The previous jam build proved the asset contract and official gate but offered o
 
 ## Measured verification
 
-The official mobile gate on 2026-09-22 passed with a real tap on `#startb` and a real held movement stick: 8.4 s ready, 2.4 MB response-body transfer, 15.3 m movement, 342 peak draws, 27,942 peak triangles, zero console errors and zero non-favicon 404s. The first human-face/gait pass increased draw calls to 428 and dropped median FPS to 34; limiting soldier shadow casting to major body forms restored 46 median FPS and brought draw calls below the 400 stretch target without removing visible soldier geometry.
+The official mobile gate on 2026-09-22 passed with a real tap on `#startb` and a real held movement stick: 8.0 s ready, 2.4 MB response-body transfer, 15.3 m movement, 342 peak draws, 27,942 peak triangles, zero console errors and zero non-favicon 404s. The first human-face/gait pass increased draw calls to 428; limiting soldier shadow casting to major body forms brought draw calls below the 400 stretch target without removing visible soldier geometry. Observed median FPS has varied from 28 to 46 on this host across gate runs, so stable frame pacing still needs targeted profiling.
 
 The first-mission browser acceptance passed real deploy → two kills → dropped intel pickup → extraction → upgrade choice → next-level advancement, with `__GAME__` reporting four hits, 1005 score, and no browser errors. The campaign playtest loaded four maps and modes, switched guns and cameras, paused/resumed, walked up a staircase to 2.16 m elevation, and defeated the level-4 Commander with real firing and reloading. Screenshots and state are in ignored local `artifacts/` folders.
 
