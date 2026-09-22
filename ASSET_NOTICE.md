@@ -21,3 +21,14 @@ license.
 Rights holders can request review or removal through a private GitHub security
 advisory or the contact options on
 [the maintainer's GitHub profile](https://github.com/luckeyfaraday).
+
+## Procedural jam build
+
+The `export/web/jam` judged build does not load the legacy third-party 3D game
+assets described above. Its environment, characters, weapons, props, and effects
+are constructed at runtime from authored Three.js primitives.
+
+The jam interface embeds Barlow Condensed, Copyright 2017 The Barlow Project
+Authors, licensed under the SIL Open Font License 1.1. The license text is in
+`export/web/jam/fonts/OFL.txt`; source files are published by Google Fonts at
+https://github.com/google/fonts/tree/main/ofl/barlowcondensed.
