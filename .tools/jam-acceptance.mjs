@@ -70,7 +70,9 @@ try {
   await page.waitForFunction(() => window.__GAME__.pos[0] >= 7.1, null, { timeout: 4_000 });
   await page.keyboard.up('KeyD');
   await page.keyboard.down('KeyW');
-  await page.waitForFunction(() => window.__GAME__.over === true && window.__GAME__.missionPhase === 'complete', null, { timeout: 4_000 });
+  // BLACKSITE's authored approach is longer than the original test range.
+  // Keep driving the real forward key long enough to reach the actual beacon.
+  await page.waitForFunction(() => window.__GAME__.over === true && window.__GAME__.missionPhase === 'complete', null, { timeout: 7_000 });
   await page.keyboard.up('KeyW');
 
   const final = await page.evaluate(() => window.__GAME__);
