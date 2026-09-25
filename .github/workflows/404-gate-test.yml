@@ -1,0 +1,42 @@
+name: 404 Gate Test
+
+on:
+  push:
+    branches: [gate-test]
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out test branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Run official ship check
+        run: npm run jam:ship
+
+      - name: Run official 404 phone gate against live deployment
+        run: node .tools/404-jam.mjs https://dairus01.github.io/blacksite/ --commit=964a9a65706fd695bef399d45a28485fb676d374 --out=_jam
+
+      - name: Upload gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 404-gate-evidence
+          path: _jam/
+          if-no-files-found: ignore
