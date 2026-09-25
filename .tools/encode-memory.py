@@ -43,7 +43,7 @@ for j, (idx, start) in enumerate(selections):
             '-vf', 'scale=1280:720',
             '-c:v', 'libx264', '-preset', 'medium', '-crf', '20',
             '-c:a', 'aac', '-b:a', '96k', '-ar', '48000', '-ac', '2',
-            '-af', 'afade=t=in:st=0:d=.12,afade=t=out:st=2.25:d=.25',
+            '-af', 'afade=t=in:st=0:d=0.12,afade=t=out:st=2.25:d=0.25',
             '-movflags', '+faststart',
             str(out),
         ]
@@ -79,7 +79,7 @@ subprocess.run(
         '-t', '15',
         '-c:v', 'copy',
         '-c:a', 'aac', '-b:a', '96k', '-ar', '48000', '-ac', '2',
-        '-af', 'afade=t=in:st=0:d=.35,afade=t=out:st=14.2:d=.8',
+        '-af', 'afade=t=in:st=0:d=0.35,afade=t=out:st=14.2:d=0.8',
         '-movflags', '+faststart',
         str(R / 'game/media/memory.mp4'),
     ],
