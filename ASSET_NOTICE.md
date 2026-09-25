@@ -13,9 +13,13 @@ used under its MIT license. The official 404 recipe license is preserved at
 
 The user supplied six generated memory clips and sixteen generated reference images. Exact originals, hashes and technical metadata are recorded in `docs/MEDIA_MANIFEST.json`. `.tools/encode-memory.py` derives a 15-second 1280×720 H.264 memory edit and small WebP character portraits. These are 2D presentation media, never imported geometry or a replacement for the playable scene.
 
-Two sound effects were generated through the connected Runway service for this project:
+The industrial ambience was generated for this project through Runway (task `0be2f9de-470c-4d2c-9dcc-eba75549dfc6`). Six distinct one-shot weapon reports were generated through the same service and shipped at 1 second each:
 
-- `game/media/rifle.mp3`: rifle report, task `513cedd4-2d64-4062-9de7-24c116555b2a`.
-- `game/media/ambience.mp3`: industrial cinematic ambience, task `0be2f9de-470c-4d2c-9dcc-eba75549dfc6`.
+- ARX-7 assault rifle: `9f8794cf-acb1-4297-91a8-ffbc8524b6dd`
+- Kestrel SMG: `33e8c04f-cdfa-4556-aeee-239455a56acb`
+- Breacher shotgun: `12d63ef6-eb2b-4866-9fb3-09f51cd3978d`
+- Vesper marksman rifle: `88838811-9e33-4bab-8846-7601a8dcbfd3`
+- Sentinel pistol: `f8adf73d-989d-4565-8b04-bdcd66be8818`
+- Bastion LMG: `d8e213da-1871-4b51-97e1-3d3abb4f840b`
 
-The memory edit uses the ambience as its optional soundtrack. Weapon variations combine playback-rate changes with procedural Web Audio cues. No third-party voice recording or franchise audio was added.
+The memory edit uses the ambience as its optional soundtrack. No third-party voice recording or franchise audio was added.

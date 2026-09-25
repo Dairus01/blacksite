@@ -21,7 +21,7 @@ const equipment = { frag: 2, smoke: 1, medkit: 2, plate: 1 };
 const effects = [];let optionalIntel=null;
 const $ = (id) => document.getElementById(id);
 document.title = `${GAME_CONFIG.title} — ${GAME_CONFIG.subtitle}`;
-const ui = Object.fromEntries(['start','tutorial','hud','touch','pause','death','complete','objective-main','objective-sub','objective-tag','mission-progress','threat','threat-text','waypoint','waypoint-label','waypoint-distance','radio','radio-text','mag','reserve','weapon-name','reload-state','health','health-fill','status-message','reticle','damage','damage-direction','commander-hud','commander-fill','complete-stats','upgrade-choices','pause-detail','level-select','weapon-select','mission-detail','brief-title','brief-text'].map((id) => [id, $(id)]));
+const ui = Object.fromEntries(['start','tutorial','hud','touch','pause','death','complete','objective-main','objective-sub','objective-tag','mission-progress','threat','threat-text','waypoint','waypoint-label','waypoint-distance','radio','radio-text','mag','reserve','weapon-name','reload-state','health','health-fill','status-message','interaction-hint','reticle','damage','damage-direction','commander-hud','commander-fill','complete-stats','upgrade-choices','pause-detail','level-select','weapon-select','mission-detail','brief-title','brief-text'].map((id) => [id, $(id)]));
 window.__READY__ = false;
 window.__GAME__ = { pos: [0, 16.5], draws: 0, tris: 0, fps: 0, started: false, missionPhase: 'deploy', enemyCount: 0, intelCount: 0 };
 
@@ -94,11 +94,11 @@ const tracers = Array.from({ length: 18 }, () => { const o = new THREE.Mesh(new 
 function sound(f, duration, volume, type = 'square', slide = 0.65) {
   if (!audio) return;
   const osc = audio.createOscillator(), gain = audio.createGain();
-  osc.type = type; osc.frequency.setValueAtTime(f, audio.currentTime);
+  osc.type = type === 'sine' ? 'sine' : 'triangle'; osc.frequency.setValueAtTime(f, audio.currentTime);
   osc.frequency.exponentialRampToValueAtTime(Math.max(24, f * slide), audio.currentTime + duration);
   gain.gain.setValueAtTime(Math.max(.0001, volume * progress.state.settings.master * progress.state.settings.sfx), audio.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + duration);
-  osc.connect(gain).connect(audio.destination); osc.start(); osc.stop(audio.currentTime + duration);
+  const filter=audio.createBiquadFilter(); filter.type='lowpass'; filter.frequency.value=900; osc.connect(filter).connect(gain).connect(audio.destination); osc.start(); osc.stop(audio.currentTime + duration);
 }
 function status(text, color = 'var(--cyan)', duration = 1.7) { ui['status-message'].textContent = text; ui['status-message'].style.color = color; ui['status-message'].classList.add('on'); statusTimer = duration; }
 function radio(speaker, text, duration = 4.3) { ui.radio.querySelector('b').textContent = speaker; ui['radio-text'].textContent = text; if (progress.state.settings.subtitles) ui.radio.classList.add('on'); radioTimer = duration; sound(780, 0.045, 0.025, 'sine', 1.2); }
@@ -231,17 +231,18 @@ function saveCheckpoint() {
 function respawn() {
  const saved=checkpoint?structuredClone(checkpoint):null,deaths=player.deaths;
  resetMission();
- if(saved&&playMode==='campaign'){Object.assign(mission,{elapsed:saved.elapsed||0,stage:saved.stage,kills:saved.kills,intel:saved.intel,score:saved.score,headshots:saved.headshots,shots:saved.shots,hits:saved.hits});for(const enemy of enemies)disposeGroup(enemy.object);enemies.length=0;player.position.fromArray(saved.pos);checkpoint=saved;if(level.map.id==='blacksite'&&routeNode().kind==='combat'&&mission.stage===3)spawnBlacksiteCounterattack();}
+ if(saved&&playMode==='campaign'){Object.assign(mission,{elapsed:saved.elapsed||0,stage:saved.stage,kills:saved.kills,intel:saved.intel,score:saved.score,headshots:saved.headshots,shots:saved.shots,hits:saved.hits});for(const enemy of enemies)disposeGroup(enemy.object);enemies.length=0;player.position.fromArray(saved.pos);checkpoint=saved;if(level.map.id==='blacksite'&&routeNode().kind==='combat'&&mission.stage===3)spawnBlacksiteCounterattack();if(level.map.id==='refinery'&&mission.stage===2)spawnAlertSquad(ROUTES.refinery[1].reinforcements.slice(0,Math.max(0,4-mission.kills)));if(level.map.id==='refinery'&&mission.stage===3)spawnAlertSquad([...ROUTES.refinery[1].reinforcements,...ROUTES.refinery[2].reinforcements].slice(0,Math.max(0,6-mission.kills)));}
  player.deaths=deaths;stageTime=0;ui.hud.classList.add('on');resume();updateObjective();status('CHECKPOINT RESTORED');
 }
 function showTutorial() { ui.tutorial.classList.add('on'); if (mission.started) { mission.paused = true; input.setEnabled(false); ui.touch.classList.remove('on'); ui.pause.classList.remove('on'); if (document.pointerLockElement) document.exitPointerLock(); } }
 function hideTutorial() { ui.tutorial.classList.remove('on'); if (mission.started && mission.paused) ui.pause.classList.add('on'); }
 function routeNode(){return ROUTES[level.map.id][mission.stage] ?? {kind:'extract',title:'REACH EXTRACTION'};}
+function spawnAlertSquad(positions){
+ for(const point of positions){const enemy=spawnEnemy(false,point);enemy.awareness=2;enemy.state='engage';enemy.cooldown=.85;}
+}
 function spawnBlacksiteCounterattack(){
  const positions=[[-4.9,-2.9],[-6,-3],[-7.2,-2.6],[-8.3,-2.4]];
- for(let i=0;i<Math.max(0,6-mission.kills);i++){
-  const enemy=spawnEnemy(false,positions[i]);enemy.awareness=2;enemy.state='engage';enemy.cooldown=.85;
- }
+ spawnAlertSquad(positions.slice(0,Math.max(0,6-mission.kills)));
 }
 function advanceStage(){
  const old=routeNode();if(old.text){if(!old.counterattack)radio('RECOVERED COMMS',old.text,7);progress.addIntel(old.text);mission.intel++;}
@@ -252,9 +253,10 @@ function advanceStage(){
   radio('COMMAND','E. Kane credential recognized. Four Sentinel contacts inside operations. Clear them, then reach extraction.',7);
   status('COUNTERATTACK · 4 HOSTILES', 'var(--red)',3);
  }
+ if(playMode==='campaign'&&old.reinforcements){spawnAlertSquad(old.reinforcements);status(`SENTINEL RESPONSE · ${old.reinforcements.length} HOSTILES`,'var(--red)',3);}
 }
 function updateObjective(){
- if(training>=0){objective(`TRAINING: ${TRAINING[training]}`,'COMPLETE THE ACTION TO CONTINUE',null,'TRAINING');return;}
+ if(training>=0){objective(`TRAINING: ${TRAINING[training]}`,TRAINING[training]==='INTERACT'?'PRESS E OR TAP USE; APPROACH TERMINALS TO ACTIVATE':'COMPLETE THE ACTION TO CONTINUE',null,'TRAINING');return;}
  if(playMode==='survival'){objective(`SURVIVE WAVE ${wave}`,`${mission.kills}/${waveTarget} HOSTILES · E AT BEACON TO BANK REWARDS`,arena.extractionPosition,'EXTRACT');return;}
  if(playMode==='team'){objective('TEAM BATTLE',`${mission.kills}/12 ECHO · ${teamLosses}/12 SENTINEL`,enemies.find(e=>e.alive)?.object.position,'HOSTILE');return;}
  if(playMode==='extraction'){const target=arena.cachePositions[mission.intel%arena.cachePositions.length];objective(mission.intel<3?'RECOVER FIELD CACHE':'REACH EXTRACTION',mission.intel<3?`${mission.intel}/3 CACHES · E / USE TO RECOVER`:'BANK YOUR INTELLIGENCE',mission.intel<3?new THREE.Vector3(...target):arena.extractionPosition,'CACHE');return;}
@@ -375,7 +377,7 @@ function updateEnemies(dt) {
     enemy.shots += 1; enemy.recoilTimer = 0.12;
     const muzzle = enemy.object.userData.joints.muzzle.getWorldPosition(new THREE.Vector3());
     const target = new THREE.Vector3(targetPos.x + Math.sin(enemy.shots * 12.9898) * 0.6, targetPos.y + 1.3, targetPos.z);
-    tracer(muzzle, target, enemy.commander ? 0xff2c38 : 0xff573f); sound(enemy.commander ? 74 : 105, 0.075, 0.025, 'sawtooth', 0.42);
+    tracer(muzzle, target, enemy.commander ? 0xff2c38 : 0xff573f); soundscape?.enemyShot(distance);
     const chance = THREE.MathUtils.clamp(0.60 - distance * 0.015 - player.speed * 0.022, 0.22, 0.58);
     if ((Math.sin(enemy.shots * 91.731 + enemies.indexOf(enemy) * 9.1) + 1) / 2 < chance) {if(targetActor){targetActor.health-=level.enemyDamage;if(targetActor.health<=0){teamLosses++;targetActor.object.rotation.z=1.4;targetActor.respawn=4;}}else damagePlayer((enemy.commander ? level.enemyDamage * 1.45 : level.enemyDamage)*(progress.state.settings.difficulty==='recruit'?.65:progress.state.settings.difficulty==='veteran'?1.5:1), enemy.object.position);}
     enemy.cooldown = (enemy.commander ? 0.55 : 0.95) + (Math.sin(enemy.shots * 3.1) + 1) * 0.25;
@@ -421,6 +423,9 @@ function updateObjectives(dt){
  }
  if(mission.objectiveClear&&player.position.distanceTo(arena.extractionPosition)<2.5)completeMission();
  interaction=false;updateObjective();
+ const hintNode=playMode==='campaign'?routeNode():null; const hintDistance=hintNode?.kind==='interact'?player.position.distanceTo(new THREE.Vector3(...hintNode.pos)):Infinity;
+ ui['interaction-hint'].classList.toggle('on',hintDistance<4 && hintDistance>=(hintNode?.autoRange??0));
+ if(hintDistance<4)ui['interaction-hint'].textContent=`${hintNode.title} // PRESS E OR TAP USE`;
 }
 function completeMission() {
   if(mission.phase==='complete')return;

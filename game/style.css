@@ -139,6 +139,8 @@ h1 span { font-size: .54em; letter-spacing: .04em; color: var(--amber); }
 #reload-state { display: block; min-height: 13px; margin-top: 3px; color: var(--amber); font-size: 10px; letter-spacing: .14em; }
 #status-message { position: absolute; left: 50%; top: 27%; transform: translateX(-50%); color: var(--cyan); font-size: clamp(15px, 2vw, 22px); font-weight: 900; letter-spacing: .14em; text-shadow: 0 3px 18px #000; opacity: 0; transition: opacity .16s ease-out; white-space: nowrap; }
 #status-message.on { opacity: 1; }
+#interaction-hint { position:absolute; left:50%; bottom:24%; transform:translateX(-50%); padding:8px 14px; border:1px solid #72bfc4aa; background:#08171de6; color:var(--chalk); font:800 clamp(13px,1.5vw,18px) "Barlow Condensed",sans-serif; letter-spacing:.1em; text-align:center; opacity:0; transition:opacity .12s; }
+#interaction-hint.on { opacity:1; }
 #reticle { position: absolute; left: 50%; top: 50%; width: 34px; height: 34px; transform: translate(-50%, -50%); transition: transform .16s ease-out; }
 #reticle i { position: absolute; display: block; background: rgba(238,242,240,.92); }
 #reticle i:nth-child(1), #reticle i:nth-child(2) { width: 8px; height: 1px; top: 16px; }

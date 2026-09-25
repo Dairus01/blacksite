@@ -7,10 +7,10 @@ export const ROUTES={
   {kind:'extract',title:'REACH EXTRACTION TO COMPLETE MISSION'}],
  refinery:[
   {kind:'combat',title:'INFILTRATE THE REFINERY',kills:2},
-  {kind:'interact',title:'DISABLE THE WEST RELAY',pos:[-10,0,3],text:'Relay one isolated. AEGIS fragments are moving through the fuel network.'},
-  {kind:'interact',title:'DISABLE THE EAST RELAY',pos:[10,0,-5],text:'A familiar voice: Hold the line, Echo. Daniel: Where did that recording come from?'},
+  {kind:'interact',title:'DISABLE THE WEST RELAY',pos:[-10,0,3],autoRange:1.8,reinforcements:[[-7,3],[-9,-1]],text:'Relay one isolated. AEGIS fragments are moving through the fuel network.'},
+  {kind:'interact',title:'DISABLE THE EAST RELAY',pos:[10,0,-5],autoRange:1.8,reinforcements:[[7,-7],[12,-5]],text:'A familiar voice: Hold the line, Echo. Daniel: Where did that recording come from?'},
   {kind:'combat',title:'ELIMINATE THE HEAVY GUNNER',kills:6},
-  {kind:'interact',title:'SABOTAGE FUEL CONTROLS',pos:[0,0,-15],text:'Fuel cascade initiated. Get clear of the refinery.'},
+  {kind:'interact',title:'SABOTAGE FUEL CONTROLS',pos:[0,0,-15],autoRange:1.8,text:'Fuel cascade initiated. Get clear of the refinery.'},
   {kind:'extract',title:'ESCAPE BEFORE DETONATION',deadline:55}],
  command:[
   {kind:'combat',title:'CLEAR THE OPERATIONS FLOOR',kills:3},
