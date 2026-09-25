@@ -224,5 +224,6 @@ export function buildArena(THREE, scene) {
     blocked,
     lineBlocked,
     stair: { ...stair, x: stairX, z: stairZ },
+    mapData: { bounds: { minX: -15.4, maxX: 15.4, minZ: -21.4, maxZ: 21.4 }, obstacles: colliders.map((c) => ({ x: c.x, z: c.z, hx: c.halfX, hz: c.halfZ })), landmarks: [{ x: -6.5, z: .3, label: 'AEGIS TERMINAL' }, { x: 0, z: 8.5, label: 'SECURITY GATE' }], upper: { x: -9.35, z: -9, hx: 2.25, hz: 3, height: stair.count * stair.rise } },
   };
 }

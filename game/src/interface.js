@@ -12,7 +12,7 @@ export function setupInterface(progress,actions){
  $('difficulty').value=progress.state.settings.difficulty;$('difficulty').onchange=e=>progress.settings({difficulty:e.target.value});
  const settings=$('settings').querySelector('.dialog');settings.querySelector('p:not(.system-line)')?.remove();
  const form=document.createElement('div');form.className='settings-grid';
- const labels={sensitivity:'Look sensitivity',master:'Master volume',music:'Memory / ambience',sfx:'Sound effects',quality:'Graphics quality',resolution:'Resolution scale',hudScale:'HUD scale',shake:'Camera shake',subtitles:'Radio subtitles',crosshair:'Crosshair',aimAssist:'Mobile aim assist'};
+ const labels={sensitivity:'Look sensitivity',master:'Master volume',music:'Memory / ambience',sfx:'Sound effects',quality:'Graphics quality',resolution:'Resolution scale',hudScale:'HUD scale',minimap:'Show minimap',mapRotate:'Rotate minimap with player',mapObjectives:'Show objective markers',shake:'Camera shake',subtitles:'Radio subtitles',crosshair:'Crosshair',aimAssist:'Mobile aim assist'};
  for(const [key,label] of Object.entries(labels)){
   const value=progress.state.settings[key],row=document.createElement('label');row.textContent=label;
   let input;if(typeof value==='boolean'){input=document.createElement('input');input.type='checkbox';input.checked=value;}

@@ -21,7 +21,7 @@ export const SHOP=Object.freeze([
  {id:'vesper',name:'VESPER',category:'WEAPONS',cost:850,unlock:3,effect:'16 rounds · 55m · precision'},
  ...[['extended','EXTENDED MAG',350,1,'Magazine capacity +35%'],['quick','TACTICAL MAGWELL',300,1,'Reload 22% faster'],['hollow','MATCH AMMUNITION',600,2,'Damage +15%'],['runner','LIGHT FIELD RIG',400,2,'Movement +12%'],['armor','ARMOR CARRIER',450,1,'Starting armor +30'],['adrenaline','TRAUMA KIT',500,3,'Heal 8 on a kill']].map(([id,name,cost,unlock,effect])=>({id,name,cost,unlock,effect,category:'ATTACHMENTS'}))
 ]);
-export const DEFAULT_SETTINGS=Object.freeze({sensitivity:1,master:.7,music:.4,sfx:.8,quality:'medium',resolution:1,hudScale:1,shake:.4,subtitles:true,crosshair:true,aimAssist:true,difficulty:'regular'});
+export const DEFAULT_SETTINGS=Object.freeze({sensitivity:1,master:.7,music:.4,sfx:.8,quality:'medium',resolution:1,hudScale:1,shake:.4,subtitles:true,crosshair:true,aimAssist:true,minimap:true,mapRotate:true,mapObjectives:true,difficulty:'regular'});
 const KEY='project-blacksite:save:v1';
 const fresh=()=>({version:1,highestCompleted:0,selectedLevel:1,selectedWeapon:'arx7',credits:0,xp:0,owned:['arx7','sentinel'],upgrades:{},settings:{...DEFAULT_SETTINGS},best:{},intel:[]});
 const finite=(v,lo,hi)=>Number.isFinite(Number(v))?Math.max(lo,Math.min(hi,Number(v))):lo;

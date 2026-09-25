@@ -1,4 +1,5 @@
 import { createSoundscape } from './audio.js';
+import { drawMap, floorName, enemyRevealed } from './minimap.js';
 import { findPath } from './navigation.js';
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js';
 import makeRifle from '../assets404/rifle.js';
@@ -21,7 +22,7 @@ const equipment = { frag: 2, smoke: 1, medkit: 2, plate: 1 };
 const effects = [];let optionalIntel=null;
 const $ = (id) => document.getElementById(id);
 document.title = `${GAME_CONFIG.title} — ${GAME_CONFIG.subtitle}`;
-const ui = Object.fromEntries(['start','tutorial','hud','touch','pause','death','complete','objective-main','objective-sub','objective-tag','mission-progress','threat','threat-text','waypoint','waypoint-label','waypoint-distance','radio','radio-text','mag','reserve','weapon-name','reload-state','health','health-fill','status-message','interaction-hint','reticle','damage','damage-direction','commander-hud','commander-fill','complete-stats','upgrade-choices','pause-detail','level-select','weapon-select','mission-detail','brief-title','brief-text'].map((id) => [id, $(id)]));
+const ui = Object.fromEntries(['start','tutorial','hud','touch','pause','death','complete','objective-main','objective-sub','objective-tag','mission-progress','threat','threat-text','waypoint','waypoint-label','waypoint-distance','radio','radio-text','mag','reserve','weapon-name','reload-state','health','health-fill','status-message','interaction-hint','minimap','minimap-canvas','minimap-floor','minimap-distance','tactical-map','tactical-canvas','tactical-detail','reticle','damage','damage-direction','commander-hud','commander-fill','complete-stats','upgrade-choices','pause-detail','level-select','weapon-select','mission-detail','brief-title','brief-text'].map((id) => [id, $(id)]));
 window.__READY__ = false;
 window.__GAME__ = { pos: [0, 16.5], draws: 0, tris: 0, fps: 0, started: false, missionPhase: 'deploy', enemyCount: 0, intelCount: 0 };
 
@@ -56,6 +57,7 @@ const progress = createCampaignProgress();
 let level = getLevel(progress.state.selectedLevel);
 let arena = null;
 let audio = null, soundscape = null, footstepClock=0;
+let mapClock=0,lastMapState=null;const mapDiscovered=new Set(),mapEnemyUntil=new WeakMap();
 let last = performance.now(), fpsClock = 0, fpsFrames = 0, fps = 60, statusTimer = 0, radioTimer = 0, hitTimer = 0, damageTimer = 0;
 const raycaster = new THREE.Raycaster();
 const aim = new THREE.Vector2();
@@ -149,7 +151,7 @@ function loadArena() {
   scene.background = new THREE.Color(0x132132); scene.fog = new THREE.FogExp2(0x1b2730, 0.018);
   arena = !mission.started || level.map.id === 'blacksite' ? buildArena(THREE, scene) : buildMissionArena(THREE, scene, level.map.id);
   arena.cachePositions ??= [[-6.5,0,.3],[7,0,-5],[7.6,0,-14]];
-  arena.resetExtraction();
+  arena.resetExtraction();mapDiscovered.clear();mapClock=0;lastMapState=null;
   if(playMode==='extraction')for(let i=arena.cachePositions.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arena.cachePositions[i],arena.cachePositions[j]]=[arena.cachePositions[j],arena.cachePositions[i]];}
   arena.cachePositions ??= [[-6.5,0,.3],[7,0,-5],[7.6,0,-14]];
   player.position.set(arena.spawns.player[0], 0, arena.spawns.player[1]);
@@ -222,9 +224,9 @@ window.game = { debug: {
     player.pitch = THREE.MathUtils.clamp(Math.atan2(y - player.position.y - player.eyeHeight, Math.hypot(dx, dz)), -1.25, 1.25);
   },
 } };
-function menu() { train('PAUSE');if(!mission.started)return; mission.paused = true; player.velocity.set(0, 0, 0); player.speed = 0; input.setEnabled(false); ui.touch.classList.remove('on'); ui.pause.classList.add('on'); ui['pause-detail'].textContent = `LEVEL ${level.id} · ${level.map.name} · ${level.mode.name} · ${mission.kills} KILLS`; if (document.pointerLockElement) document.exitPointerLock(); }
+function menu() { if(ui['tactical-map'].classList.contains('on')){closeTacticalMap();return;}train('PAUSE');if(!mission.started)return; mission.paused = true; player.velocity.set(0, 0, 0); player.speed = 0; input.setEnabled(false); ui.touch.classList.remove('on'); ui.pause.classList.add('on'); ui['pause-detail'].textContent = `LEVEL ${level.id} · ${level.map.name} · ${level.mode.name} · ${mission.kills} KILLS`; if (document.pointerLockElement) document.exitPointerLock(); }
 function resume() { mission.paused = false; input.setEnabled(true); ui.pause.classList.remove('on'); ui.touch.classList.add('on'); input.requestPointerLock(); }
-function returnToMenu() { training=-1; mission.started = false; mission.paused = false; mission.phase = 'deploy'; progress.resetRun(); input.setEnabled(false); ui.hud.classList.remove('on'); ui.touch.classList.remove('on'); ui.pause.classList.remove('on'); ui.death.classList.remove('on'); ui.complete.classList.remove('on'); ui.tutorial.classList.remove('on'); ui.start.classList.add('on'); avatar.visible = false; for (const model of models.values()) model.visible = false; ui['level-select'].value = level.id; refreshMenu(); if (document.pointerLockElement) document.exitPointerLock(); }
+function returnToMenu() { ui['tactical-map'].classList.remove('on');lastMapState=null;training=-1; mission.started = false; mission.paused = false; mission.phase = 'deploy'; progress.resetRun(); input.setEnabled(false); ui.hud.classList.remove('on'); ui.touch.classList.remove('on'); ui.pause.classList.remove('on'); ui.death.classList.remove('on'); ui.complete.classList.remove('on'); ui.tutorial.classList.remove('on'); ui.start.classList.add('on'); avatar.visible = false; for (const model of models.values()) model.visible = false; ui['level-select'].value = level.id; refreshMenu(); if (document.pointerLockElement) document.exitPointerLock(); }
 function saveCheckpoint() {
  checkpoint={stage:mission.stage,kills:mission.kills,intel:mission.intel,score:mission.score,headshots:mission.headshots,shots:mission.shots,hits:mission.hits,elapsed:mission.elapsed,pos:player.position.toArray()};
 }
@@ -374,7 +376,7 @@ function updateEnemies(dt) {
     enemy.object.userData.pose(enemy.cooldown>2?'reload':motion>.05?'aimWalk':'aim', mission.elapsed + enemies.indexOf(enemy) * 0.3, enemy.hitTimer, enemy.recoilTimer / 0.12, motion);
     enemy.cooldown -= dt;
     if (enemy.awareness<1 || !visible || distance > 24 || enemy.cooldown > 0 || !player.alive) continue;
-    enemy.shots += 1; enemy.recoilTimer = 0.12;
+    enemy.shots += 1; enemy.lastFireAt=mission.elapsed; enemy.recoilTimer = 0.12;
     const muzzle = enemy.object.userData.joints.muzzle.getWorldPosition(new THREE.Vector3());
     const target = new THREE.Vector3(targetPos.x + Math.sin(enemy.shots * 12.9898) * 0.6, targetPos.y + 1.3, targetPos.z);
     tracer(muzzle, target, enemy.commander ? 0xff2c38 : 0xff573f); soundscape?.enemyShot(distance);
@@ -490,7 +492,7 @@ $('pause-camera').addEventListener('click', () => setCameraMode(camMode + 1));
 $('swap').addEventListener('click', () => chooseWeapon(ownedWeapons()[(ownedWeapons().findIndex(item=>item.id===spec.id)+1)%ownedWeapons().length].id));
 $('again').addEventListener('click', () => { if(playMode!=='campaign'){resetMission();ui.hud.classList.add('on');ui.touch.classList.add('on');input.setEnabled(true);input.requestPointerLock();return;}if(level.id===4&&playMode==='campaign'){returnToMenu();return;} ui['level-select'].value = Math.min(4, level.id + 1); level = getLevel(ui['level-select'].value); resetMission(); ui.complete.classList.remove('on'); ui.hud.classList.add('on'); ui.touch.classList.add('on'); input.setEnabled(true); input.requestPointerLock(); radio('COMMAND', level.briefing, 5.4); });
 $('replay').addEventListener('click', () => { resetMission(); ui.complete.classList.remove('on'); ui.hud.classList.add('on'); ui.touch.classList.add('on'); input.setEnabled(true); input.requestPointerLock(); });
-addEventListener('keydown', (event) => { if (event.code === 'Escape' && mission.started && player.alive && !['complete','failed'].includes(mission.phase)) { if (mission.paused) resume(); else menu(); } if (!mission.started || mission.paused || !player.alive) return; if (/^Digit[1-6]$/.test(event.code) && !event.repeat) chooseWeapon(WEAPONS[Number(event.code.slice(-1)) - 1].id); if (event.code === 'KeyQ' && !event.repeat) chooseWeapon(ownedWeapons()[(ownedWeapons().findIndex(item=>item.id===spec.id)+1)%ownedWeapons().length].id); if (event.code === 'KeyC' && !event.repeat){player.crouch=!player.crouch;train('CROUCH');} if(event.code==='KeyE'){interaction=true;train('INTERACT');}if(event.code==='KeyG'&&!event.repeat)useEquipment('frag');if(event.code==='KeyH'&&!event.repeat)useEquipment('medkit');if(event.code==='KeyB'&&!event.repeat)useEquipment('plate');if(event.code==='KeyX'&&!event.repeat)useEquipment('smoke');if(event.code==='KeyM'){train('MAP / OBJECTIVE');status(routeNode().title,'var(--cyan)',4);} });
+addEventListener('keydown', (event) => { if ((event.code === 'Escape'||event.code === 'KeyM')&&ui['tactical-map'].classList.contains('on')) { closeTacticalMap();return; } if (event.code === 'Escape' && mission.started && player.alive && !['complete','failed'].includes(mission.phase)) { if (mission.paused) resume(); else menu(); } if (!mission.started || mission.paused || !player.alive) return; if (/^Digit[1-6]$/.test(event.code) && !event.repeat) chooseWeapon(WEAPONS[Number(event.code.slice(-1)) - 1].id); if (event.code === 'KeyQ' && !event.repeat) chooseWeapon(ownedWeapons()[(ownedWeapons().findIndex(item=>item.id===spec.id)+1)%ownedWeapons().length].id); if (event.code === 'KeyC' && !event.repeat){player.crouch=!player.crouch;train('CROUCH');} if(event.code==='KeyE'){interaction=true;train('INTERACT');}if(event.code==='KeyG'&&!event.repeat)useEquipment('frag');if(event.code==='KeyH'&&!event.repeat)useEquipment('medkit');if(event.code==='KeyB'&&!event.repeat)useEquipment('plate');if(event.code==='KeyX'&&!event.repeat)useEquipment('smoke');if(event.code==='KeyM'&&!event.repeat)openTacticalMap(); });
 renderer.domElement.addEventListener('click', () => { if (mission.started && !mission.paused && player.alive) input.requestPointerLock(); });
 
 
@@ -522,7 +524,7 @@ function updateEffects(dt){
 }
 function applySettings(){
  const st=progress.state.settings;soundscape?.update();renderer.shadowMap.enabled=st.quality!=='low';renderer.toneMappingExposure=st.quality==='high'?1.12:1.06;
- ui.reticle.style.display=st.crosshair?'':'none';document.documentElement.style.setProperty('--hud-scale',st.hudScale);resize();
+ ui.reticle.style.display=st.crosshair?'':'none';ui.minimap.style.display=st.minimap?'':'none';document.documentElement.style.setProperty('--hud-scale',st.hudScale);resize();if(mission.started)updateMapUI();
 }
 interfaceUI=setupInterface(progress,{
  preview:async container=>(await import('./weapon-preview.js')).populateWeaponPreviews(container,THREE),
@@ -533,7 +535,7 @@ refreshMenu();
 for(const [id,label,action] of [
  ['crouch','LOW',()=>{player.crouch=!player.crouch;train('CROUCH');}],['use','USE',()=>{interaction=true;train('INTERACT');}],
  ['frag','FRAG',()=>useEquipment('frag')],['heal','HEAL',()=>useEquipment('medkit')],['smoke','SMOKE',()=>useEquipment('smoke')],['plate','PLATE',()=>useEquipment('plate')],
- ['map','OBJ',()=>{train('MAP / OBJECTIVE');status(routeNode().title);}]
+ ['map','MAP',openTacticalMap]
 ]){const b=document.createElement('button');b.id=id;b.textContent=label;b.setAttribute('aria-label',label);b.onclick=action;ui.touch.append(b);}
 const trainButton=document.createElement('button');trainButton.id='begin-training';trainButton.textContent='BEGIN INTERACTIVE TRAINING';trainButton.onclick=()=>{training=0;startGame();clearActors();updateObjective();};ui.tutorial.querySelector('.dialog').append(trainButton);
 $('camera-button').textContent='RUN';$('camera-button').onclick=()=>{input.state.touchSprint=!input.state.touchSprint;};
@@ -554,13 +556,27 @@ function frame(now) {
   if (hitTimer > 0 && (hitTimer -= dt) <= 0) ui.reticle.classList.remove('hit','headshot');
   if (damageTimer > 0 && (damageTimer -= dt) <= 0) { ui.damage.style.opacity = '0'; ui['damage-direction'].classList.remove('on'); }
   for (const o of tracers) { if (o.userData.life <= 0) continue; o.userData.life -= dt; o.material.opacity = Math.max(0, o.userData.life * 13); if (o.userData.life <= 0) o.visible = false; }
+  if(mission.started && ((mapClock+=dt)>=.1 || !lastMapState)){mapClock=0;updateMapUI();}
   arena?.updateWeather?.(dt);
   renderer.info.reset(); renderer.render(scene, camera);
   const living = enemies.filter((enemy) => enemy.alive);
   const boss = living.find((enemy) => enemy.commander);
   if (boss) ui['commander-fill'].style.transform = `scaleX(${Math.max(0, boss.health / boss.maxHealth)})`;
-  Object.assign(window.__GAME__, { pos: [Number(player.position.x.toFixed(3)), Number(player.position.z.toFixed(3))], elevation: Number(player.position.y.toFixed(3)), velocity: [Number(player.velocity.x.toFixed(3)), Number(player.verticalVelocity.toFixed(3)), Number(player.velocity.z.toFixed(3))], fps, speed: Number(player.speed.toFixed(2)), stage:mission.stage, objective:ui['objective-main'].textContent, objectivePosition:worldTarget.toArray(), credits:progress.state.credits, xp:progress.state.xp, reward:mission.reward, equipment:{...equipment}, armor:Math.ceil(player.armor), crouch:player.crouch, training, wave, teamLosses, allies:allies.map(a=>({health:a.health,pos:a.object.position.toArray()})), draws: renderer.info.render.calls, tris: renderer.info.render.triangles, started: mission.started, paused: mission.paused, alive: player.alive, health: Math.ceil(player.health), weapon: spec.name, ammo: ammo().magazine, reserveAmmo: ammo().reserve, reloading: weapon.reloadRemaining > 0, ads: weapon.adsBlend > 0.55, grounded: player.grounded, enemyCount: living.length, enemies: living.map((enemy) => ({ pos: [Number(enemy.object.position.x.toFixed(2)), Number(enemy.object.position.z.toFixed(2))], health: Math.ceil(enemy.health), role:enemy.role, state:enemy.state, phase:enemy.phase, elevation:enemy.object.position.y, commander: enemy.commander })), enemyState: living[0]?.state ?? 'none', enemyHealth: living[0] ? Math.ceil(living[0].health) : 0, enemyShots: enemies.reduce((sum, enemy) => sum + enemy.shots, 0), damageTaken: player.damageTaken, deaths: player.deaths, missionPhase: mission.phase, level: level.id, map: level.map.id, mode: playMode, highestCompleted: progress.state.highestCompleted, intelCount: mission.intel, intelRequired: level.intelRequired, extractionActive: mission.objectiveClear, commanderSpawned: mission.commanderSpawned, commanderAlive: Boolean(boss), commanderHealth: boss ? Math.ceil(boss.health) : 0, kills: mission.kills, requiredKills: level.requiredKills, elapsed: Number(mission.elapsed.toFixed(2)), score: mission.score, over: mission.phase === 'complete', shots: mission.shots, hits: mission.hits, headshots: mission.headshots, cameraMode: camModes[camMode], upgrades: progress.state.upgrades, stair: arena?.stair ?? null });
+  Object.assign(window.__GAME__, { mapFloor:lastMapState?.floor, mapObjectiveDistance:lastMapState?.distance, mapEnemyCount:lastMapState?.enemies.length, tacticalMapOpen:ui['tactical-map'].classList.contains('on'), pos: [Number(player.position.x.toFixed(3)), Number(player.position.z.toFixed(3))], elevation: Number(player.position.y.toFixed(3)), velocity: [Number(player.velocity.x.toFixed(3)), Number(player.verticalVelocity.toFixed(3)), Number(player.velocity.z.toFixed(3))], fps, speed: Number(player.speed.toFixed(2)), stage:mission.stage, objective:ui['objective-main'].textContent, objectivePosition:worldTarget.toArray(), credits:progress.state.credits, xp:progress.state.xp, reward:mission.reward, equipment:{...equipment}, armor:Math.ceil(player.armor), crouch:player.crouch, training, wave, teamLosses, allies:allies.map(a=>({health:a.health,pos:a.object.position.toArray()})), draws: renderer.info.render.calls, tris: renderer.info.render.triangles, started: mission.started, paused: mission.paused, alive: player.alive, health: Math.ceil(player.health), weapon: spec.name, ammo: ammo().magazine, reserveAmmo: ammo().reserve, reloading: weapon.reloadRemaining > 0, ads: weapon.adsBlend > 0.55, grounded: player.grounded, enemyCount: living.length, enemies: living.map((enemy) => ({ pos: [Number(enemy.object.position.x.toFixed(2)), Number(enemy.object.position.z.toFixed(2))], health: Math.ceil(enemy.health), role:enemy.role, state:enemy.state, phase:enemy.phase, elevation:enemy.object.position.y, commander: enemy.commander })), enemyState: living[0]?.state ?? 'none', enemyHealth: living[0] ? Math.ceil(living[0].health) : 0, enemyShots: enemies.reduce((sum, enemy) => sum + enemy.shots, 0), damageTaken: player.damageTaken, deaths: player.deaths, missionPhase: mission.phase, level: level.id, map: level.map.id, mode: playMode, highestCompleted: progress.state.highestCompleted, intelCount: mission.intel, intelRequired: level.intelRequired, extractionActive: mission.objectiveClear, commanderSpawned: mission.commanderSpawned, commanderAlive: Boolean(boss), commanderHealth: boss ? Math.ceil(boss.health) : 0, kills: mission.kills, requiredKills: level.requiredKills, elapsed: Number(mission.elapsed.toFixed(2)), score: mission.score, over: mission.phase === 'complete', shots: mission.shots, hits: mission.hits, headshots: mission.headshots, cameraMode: camModes[camMode], upgrades: progress.state.upgrades, stair: arena?.stair ?? null });
 }
+function mapSnapshot(){
+ const floor=floorName(player.position.y,arena.mapData.upper?.height||2.1),distance=Math.hypot(worldTarget.x-player.position.x,worldTarget.z-player.position.z);
+ for(let i=0;i<(arena.mapData.landmarks?.length||0);i++){const place=arena.mapData.landmarks[i];if(Math.hypot(place.x-player.position.x,place.z-player.position.z)<10)mapDiscovered.add(i);}
+ const visible=[];
+ for(const enemy of enemies){if(!enemy.alive)continue;const dx=enemy.object.position.x-player.position.x,dz=enemy.object.position.z-player.position.z,d=Math.hypot(dx,dz);const facing=d>0?(-Math.sin(player.yaw)*dx-Math.cos(player.yaw)*dz)/d:1;
+ if(enemyRevealed({distance:d,facing,lineBlocked:arena.lineBlocked(player.position.x,player.position.z,enemy.object.position.x,enemy.object.position.z),awareness:enemy.awareness,lastFireAt:enemy.lastFireAt,now:mission.elapsed}))mapEnemyUntil.set(enemy,mission.elapsed+3);
+ if((mapEnemyUntil.get(enemy)||0)>mission.elapsed)visible.push({x:enemy.object.position.x,z:enemy.object.position.z});}
+ return {mapData:arena.mapData,stair:arena.stair,player:{x:player.position.x,z:player.position.z},yaw:player.yaw,floor,rotate:progress.state.settings.mapRotate,showObjectives:progress.state.settings.mapObjectives,objective:{x:worldTarget.x,z:worldTarget.z},distance,extraction:{x:arena.extractionPosition.x,z:arena.extractionPosition.z},extractionActive:mission.objectiveClear,teammates:allies.filter(a=>a.health>0).map(a=>({x:a.object.position.x,z:a.object.position.z})),enemies:visible,discovered:[...mapDiscovered].map(i=>arena.mapData.landmarks[i])};
+}
+function updateMapUI(){if(!arena?.mapData)return;lastMapState=mapSnapshot();ui['minimap-floor'].textContent=lastMapState.floor;ui['minimap-distance'].textContent=`${Math.ceil(lastMapState.distance)}m TO OBJECTIVE`;if(progress.state.settings.minimap)drawMap(ui['minimap-canvas'],lastMapState);if(ui['tactical-map'].classList.contains('on')){drawMap(ui['tactical-canvas'],lastMapState,{large:true});ui['tactical-detail'].textContent=`${level.map.name} // ${lastMapState.floor} FLOOR // ${Math.ceil(lastMapState.distance)}m TO OBJECTIVE`;}}
+function openTacticalMap(){if(ui['tactical-map'].classList.contains('on')){closeTacticalMap();return;}if(!mission.started||!player.alive||mission.paused||['complete','failed'].includes(mission.phase))return;train('MAP / OBJECTIVE');mission.paused=true;input.setEnabled(false);ui.touch.classList.remove('on');ui['tactical-map'].classList.add('on');if(document.pointerLockElement)document.exitPointerLock();updateMapUI();}
+function closeTacticalMap(){if(!ui['tactical-map'].classList.contains('on'))return;ui['tactical-map'].classList.remove('on');resume();}
+$('tactical-close').addEventListener('click',closeTacticalMap);
 function resize() { renderer.setPixelRatio(Math.min(devicePixelRatio || 1, innerWidth < 900 ? 1.25 : 1.5)*progress.state.settings.resolution); renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.fov = innerWidth < innerHeight ? 86 : 72; camera.updateProjectionMatrix(); for (const model of models.values()) model.scale.setScalar(innerWidth < innerHeight ? 0.32 : 0.44); }
 addEventListener('resize', resize); resize(); loadArena(); camera.position.set(0, 2.25, 16.5); applySettings();memory.ready();window.__READY__ = true; requestAnimationFrame(frame);
 
