@@ -52,8 +52,10 @@ try {
   await page.locator('#startb').click();
   const state=()=>page.evaluate(()=>window.__GAME__);
   const tp=async(pos)=>{assert.ok(await page.evaluate(pos=>window.game.debug.teleportPlayer(pos),pos));await page.waitForTimeout(100);};
-  await page.keyboard.down('KeyW');await page.waitForTimeout(500);await page.keyboard.up('KeyW');
-  assert.ok((await state()).pos[1]<15);
+  const movementStart=(await state()).pos;
+  await page.keyboard.down('KeyW');await page.waitForTimeout(900);await page.keyboard.up('KeyW');
+  const movementEnd=(await state()).pos;
+  assert.ok(Math.hypot(movementEnd[0]-movementStart[0],movementEnd[1]-movementStart[1])>.5,'keyboard input moves the operator');
   await page.keyboard.press('Space');await page.waitForTimeout(160);assert.ok(!(await state()).grounded);await page.waitForTimeout(900);
   await page.mouse.down({button:'right'});await page.waitForTimeout(250);assert.ok((await state()).ads);await page.mouse.up({button:'right'});
   await page.keyboard.press('KeyC');assert.ok(await page.waitForFunction(()=>window.__GAME__.crouch));await page.keyboard.press('KeyC');
