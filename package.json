@@ -41,7 +41,7 @@
     "three": "0.185.1"
   },
   "devDependencies": {
-    "playwright-core": "^1.62.1",
+    "playwright-core": "^1.63.0",
     "puppeteer": "^25.8.0"
   }
 }
