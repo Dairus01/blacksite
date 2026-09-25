@@ -11,9 +11,25 @@ used under its MIT license. The official 404 recipe license is preserved at
 
 ## Rebuild media, 2026-09-25
 
-The user supplied six generated memory clips and sixteen generated reference images. Exact originals, hashes and technical metadata are recorded in `docs/MEDIA_MANIFEST.json`. `.tools/encode-memory.py` derives a 15-second 1280×720 H.264 memory edit and small WebP character portraits. These are 2D presentation media, never imported geometry or a replacement for the playable scene.
+Six source memory clips were generated for PROJECT BLACKSITE in Google Flow, and
+sixteen generated reference images were used during development. Exact originals,
+hashes, and technical metadata are recorded in `docs/MEDIA_MANIFEST.json`.
 
-The industrial ambience was generated for this project through Runway (task `0be2f9de-470c-4d2c-9dcc-eba75549dfc6`). Six distinct one-shot weapon reports were generated through the same service and shipped at 1 second each:
+`.tools/encode-memory.py` derives the shipped 15-second 1280×720 H.264 memory
+montage from those six source clips. The current build preserves the original
+scene audio from the selected Flow clips—including their dialogue, environmental
+sound, action, and other scene-specific audio—and does not replace that soundtrack
+with the separate generic ambience track. The same media pipeline also derives
+small WebP character portraits. These are 2D presentation media only; they are
+never imported as geometry or used as a substitute for the playable Three.js
+scene.
+
+A separate industrial ambience track was generated for this project through
+Runway (task `0be2f9de-470c-4d2c-9dcc-eba75549dfc6`). It is retained as a
+project-generated audio asset but is not mixed into the current memory montage.
+
+Six distinct one-shot weapon reports were generated through Runway and shipped at
+approximately one second each:
 
 - ARX-7 assault rifle: `9f8794cf-acb1-4297-91a8-ffbc8524b6dd`
 - Kestrel SMG: `33e8c04f-cdfa-4556-aeee-239455a56acb`
@@ -22,4 +38,5 @@ The industrial ambience was generated for this project through Runway (task `0be
 - Sentinel pistol: `f8adf73d-989d-4565-8b04-bdcd66be8818`
 - Bastion LMG: `d8e213da-1871-4b51-97e1-3d3abb4f840b`
 
-The memory edit uses the ambience as its optional soundtrack. No third-party voice recording or franchise audio was added.
+No third-party franchise audio or third-party voice recording was added to the
+competition build.
