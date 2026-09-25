@@ -1,13 +1,9 @@
 cff-version: 1.2.0
-message: "If you use this project, please cite it and shout out @luckeyfaraday."
-title: "Claude of Duty: Vibe Slops II"
+message: "If you use this project, please cite PROJECT BLACKSITE."
+title: "PROJECT BLACKSITE"
 type: software
 authors:
-  - family-names: Faraday
-    given-names: Luckey
-    alias: luckeyfaraday
-repository-code: "https://github.com/luckeyfaraday/claude-of-duty"
-url: "https://vibeslops.luckeysystems.com/"
+  - family-names: Okoh
+    given-names: Dairus
+date-released: 2026-09-25
 license: MIT
-version: 1.0.0
-date-released: 2026-09-02

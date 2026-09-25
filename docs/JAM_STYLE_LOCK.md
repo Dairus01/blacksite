@@ -1,4 +1,4 @@
-# Breach Zero — locked style
+# PROJECT BLACKSITE — locked style
 
 > Near-future blacksite hardware is fabricated from charcoal powder-coated steel, oxidized copper conduit, pale poured concrete, and restrained amber safety lighting, with crisp chamfers and no printed glyphs.
 

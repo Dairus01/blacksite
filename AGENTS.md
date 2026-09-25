@@ -1,66 +1,13 @@
-# Agent development guide
+# PROJECT BLACKSITE development guide
 
-This project is a browser-based Three.js reconstruction of T6 Hijacked. Agents
-must verify gameplay changes with both structured state and rendered evidence;
-source inspection alone is not sufficient for changes that can affect runtime
-behavior or visuals.
+The canonical game and deploy root is `game/`. Run it with `npm start`.
 
-## Standard workflow
+For gameplay or rendering changes, run focused unit tests, `npm test`, and
+`npm run test:browser`. Inspect `artifacts/jam-acceptance/complete.png` and
+`state.json`; browser console errors and missing resources are failures. Use
+`window.game.debug` for safe deterministic inspection. Keep `window.__READY__`
+and `window.__GAME__` truthful.
 
-1. Run `npm run ai:state` before a gameplay or rendering change when a baseline
-   is useful.
-2. Make the smallest relevant code change.
-3. Run the focused unit tests, then `npm run ai:test`.
-4. Inspect `artifacts/ai-game/report.json`, `state.json`, `console.log`, and
-   `screenshot.png`. Compare `before.png` when visual state changed.
-5. For animation, timing, camera, or effects work, run
-   `npm run ai:record -- 10` and inspect `recording.webm` or `trace.zip`.
-6. For enemy perception, navigation, combat, or coordination work, run
-   `npm run ai:enemy` to stage a reproducible six-enemy encounter.
-7. For touch input or mobile layout work, run `npm run ai:mobile`. It drives
-   simultaneous browser touch contacts and saves state, screenshots, and a
-   trace to `artifacts/ai-mobile`, including portrait and landscape layouts.
-8. For graphics presets or output-buffer changes, run `npm run ai:graphics`
-   and `npm run ai:graphics -- fallback`. Inspect their `graphics-*.png`
-   comparisons and `graphics-states.json`; retain separate artifact directories.
-
-The harness launches its own HTTP server and Chrome/Edge. Set
-`AI_GAME_HEADED=1` only when a visible browser is useful. Generated artifacts
-are local evidence and must not be committed.
-
-## Runtime automation API
-
-Wait until `globalThis.hijacked?.debug?.getState().ready` is true. Prefer the
-stable methods on `globalThis.hijacked.debug` over reaching into Three.js or
-gameplay implementation details:
-
-- `getState()` returns serializable player, weapon, enemy, overlay, menu, HUD,
-  and renderer state.
-- `setActive(boolean)`, `pause()`, and `resume()` control automated play.
-- `teleportPlayer([x, y, z])` and `lookAt([x, y, z])` arrange reproducible
-  scenes.
-- `showNavigation(boolean)` and `showCollision(boolean)` control debug views.
-- `showMenu(boolean)` raises or drops the pause shell without touching pointer
-  lock, which Escape cannot do reliably under automation.
-- `damagePlayer(number)`, `respawnPlayer()`, and `respawnEnemies()` create test
-  conditions.
-- `teleportEnemy(index, [x, y, z])` and `alertEnemies(radius)` stage encounters.
-- `finishMatch()` stages the results screen; `getState().input.touch` observes
-  touch mode, pointer count, movement axes, and action state.
-- `setGraphicsPreset('auto' | 'performance' | 'quality')` changes the saved
-  graphics setting; `getState().performance.graphics` observes rendering quality.
-
-When adding a gameplay system, expose only compact, serializable observations
-or safe test controls through this API. Do not expose frame-sized geometry,
-textures, audio buffers, or cyclic Three.js objects in `getState()`.
-
-## Visual evidence rules
-
-- Capture a new screenshot after every input or state change being evaluated;
-  coordinates and visual assumptions become stale after the scene changes.
-- Treat browser console errors, page errors, and failed asset requests as test
-  failures.
-- Prefer deterministic setup through the debug API, then use real keyboard and
-  mouse events for the behavior under test.
-- Use a fixed viewport unless the task specifically concerns responsive layout
-  or rendering resolution.
+The game must remain an original procedural Three.js 404 entry. Do not add
+imported map, weapon, player, or enemy models. Preserve the official gate and
+ship tools. Generated evidence belongs under ignored artifact directories.

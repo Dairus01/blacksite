@@ -4,7 +4,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
 
-const root = path.resolve('export/web/jam');
+const root = path.resolve('game');
 const out = path.resolve('artifacts/campaign-playtest');
 fs.mkdirSync(out, { recursive: true });
 const mime = new Map([['.html','text/html; charset=utf-8'],['.js','text/javascript; charset=utf-8'],['.css','text/css; charset=utf-8'],['.webp','image/webp'],['.woff2','font/woff2']]);
@@ -43,10 +43,10 @@ try {
   await page.locator('#startb').click();
   await page.waitForFunction(() => window.__GAME__.started && window.__GAME__.level === 3);
   let snapshot = await state();
-  assert.equal(snapshot.map, 'drydock');
+  assert.equal(snapshot.map, 'desert-comms');
   assert.equal(snapshot.mode, 'hold');
   assert.equal(snapshot.weapon, 'KESTREL-9');
-  await page.screenshot({ path: path.join(out, 'drydock.png') });
+  await page.screenshot({ path: path.join(out, 'desert-comms.png') });
   await page.keyboard.press('Digit3');
   await page.waitForFunction(() => window.__GAME__.weapon === 'BR-12');
   await page.mouse.down({ button: 'left' });
@@ -57,7 +57,7 @@ try {
   await page.screenshot({ path: path.join(out, 'shotgun-reload.png') });
   await page.waitForFunction(() => !window.__GAME__.reloading, null, { timeout: 5000 });
   await page.keyboard.press('Digit5');
-  await page.waitForFunction(() => window.__GAME__.weapon === 'ATLAS-56');
+  await page.waitForFunction(() => window.__GAME__.weapon === 'SENTINEL-45');
   await page.keyboard.press('KeyC');
   await page.waitForFunction(() => window.__GAME__.cameraMode === 'LEFT SHOULDER');
   await page.screenshot({ path: path.join(out, 'shoulder-camera.png') });
@@ -83,7 +83,7 @@ try {
   await page.screenshot({ path: path.join(out, 'stair-top.png') });
   await page.keyboard.press('Escape');
   await page.locator('#pause-menu').click();
-  for (const [id, map, mode] of [['4','drydock','hunt'],['5','quarry','recon'],['7','substation','hold'],['100','drydock','hunt']]) {
+  for (const [id, map, mode] of [['4','desert-comms','hunt'],['5','frozen-outpost','recon'],['7','harbor-district','hold'],['100','desert-comms','hunt']]) {
     await page.locator('#level-select').selectOption(id);
     await page.locator('#startb').click();
     await page.waitForFunction((number) => window.__GAME__.level === number, Number(id));
@@ -94,18 +94,19 @@ try {
     await page.keyboard.press('Escape');
     await page.locator('#pause-menu').click();
   }
-  await page.locator('#level-select').selectOption('4');
+  await page.locator('#level-select').selectOption('8');
   await page.locator('#weapon-select').selectOption('vesper');
   await page.locator('#startb').click();
-  await page.waitForFunction(() => window.__GAME__.level === 4);
+  await page.waitForFunction(() => window.__GAME__.level === 8);
   await page.keyboard.press('KeyC');
   await page.keyboard.press('KeyC');
   await page.waitForFunction(() => window.__GAME__.cameraMode === 'FIRST PERSON');
   async function shootAt(target, duration) {
     const positioned = await page.evaluate(([x, z]) => {
-      const moved = window.game.debug.teleportPlayer([x, 0, z + 4.5]);
+      const candidates = [[x, z + 2.2], [x, z - 2.2], [x + 2.2, z], [x - 2.2, z], [x + 1.55, z + 1.55], [x - 1.55, z - 1.55], [0, 16.5]];
+      const point = candidates.find(([px, pz]) => window.game.debug.teleportPlayer([px, 0, pz]));
       window.game.debug.lookAt([x, 1.3, z]);
-      return moved;
+      return Boolean(point);
     }, target);
     assert.equal(positioned, true, `Target setup must be traversable: ${target}`);
     await page.waitForTimeout(100);
@@ -113,7 +114,7 @@ try {
     await page.waitForTimeout(duration);
     await page.mouse.up({ button: 'left' });
   }
-  for (let attempt = 0; attempt < 8 && (await state()).kills < 2; attempt += 1) {
+  for (let attempt = 0; attempt < 12 && (await state()).kills < (await state()).requiredKills; attempt += 1) {
     const target = (await state()).enemies.find((enemy) => !enemy.commander)?.pos;
     assert.ok(target, 'Ordinary target should remain until kill count is met');
     await shootAt(target, 390);

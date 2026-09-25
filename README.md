@@ -1,49 +1,119 @@
-# Breach Zero
+# PROJECT BLACKSITE
 
-Breach Zero is a self-contained, procedural Three.js tactical FPS campaign made for the 404 Game Jam. The judged build is at `export/web/jam/`. All of its 3D arenas, cover, soldiers, weapons, pickups, and extraction equipment are authored in JavaScript with Three.js geometry. It does not fetch the legacy GLB maps, characters, or weapons.
+PROJECT BLACKSITE is an original browser-based tactical FPS built in Three.js
+for the 404 Game Jam.
 
-## Story and campaign
+**TACTICAL OPERATIONS**
+**INFILTRATE. SURVIVE. EXTRACT.**
 
-Aegis Relay 7 goes dark. Echo One discovers that a hostile cell has replaced its security force, stolen an uplink cipher, and begun broadcasting false orders across the region. The campaign follows that signal through four acts—The Blackout, The Transfer, The False Signal, and The Last Transmission—and four sites: BLACKSITE, DRYDOCK, QUARRY, and SUBSTATION.
+## The game
 
-The mission selector exposes 100 numbered operations with distinct operation/target names, briefings, objectives, and escalating enemy health, pressure, intel targets, and Commander milestones. Completing a mission advances to the next; players can also choose any level from the briefing screen. These are data-driven missions across four authored procedural arenas, not 100 separately modeled maps.
+The classified AEGIS autonomous communications network has gone offline after
+coordinated attacks on multiple facilities. As Echo One, a covert response
+operator, the player follows stolen command-protocol fragments through a
+100-mission campaign and discovers that restoring the network may be more
+dangerous than leaving it dark.
 
-Four modes change the objective:
+The current game includes campaign progression, mission selection, four
+operation types, five fictional weapons, procedural enemies and a Commander,
+upgrades, checkpoints, first- and third-person cameras, desktop and touch
+input, pause/restart/respawn, and the official 404 runtime state contract.
 
-- RECON: eliminate carriers, collect their dropped intel, and extract.
-- ASSAULT: clear the required hostile force and extract.
-- HOLD: survive the defense window, meet the kill order, and extract.
-- HUNT: eliminate the target force, defeat the Commander, and extract.
+## Original environments
 
-The field guide on the briefing screen explains the story, controls, objectives, and progression. Winning offers one of three run-only field upgrades; they carry into the next mission in that run and reset when returning to mission selection. The pause menu includes resume, restart, respawn, camera mode, field guide, and mission select.
+- **BLACKSITE** — industrial coastal communications compound.
+- **DESERT COMMS** — remote desert communications installation.
+- **FROZEN OUTPOST** — snowbound high-altitude military station.
+- **HARBOR DISTRICT** — nighttime container port and industrial dockyard.
 
-## Play locally
+Every environment is assembled at runtime from Three.js primitives. The game
+ships no imported 3D map, weapon, player, or enemy models.
 
-From the repository root:
+## Modes
 
-```powershell
+- **CAMPAIGN** — the complete AEGIS incident storyline.
+- **SURVIVAL** — hold an objective against escalating pressure.
+- **EXTRACTION** — recover intelligence and reach the extraction beacon.
+- **TEAM BATTLE** — an architectural target for future squad combat.
+
+Current mission protocols rotate through RECON, ASSAULT, HOLD, and HUNT.
+
+## Weapons
+
+- ARX-7 assault rifle
+- KESTREL-9 submachine gun
+- VESPER marksman rifle
+- BR-12 combat shotgun
+- SENTINEL-45 sidearm
+
+All weapon geometry and effects are generated in code.
+
+## Controls
+
+| Action | Desktop | Touch |
+| --- | --- | --- |
+| Move | WASD / arrows | Left stick |
+| Look | Mouse | Drag right side |
+| Fire | Left mouse | FIRE |
+| Aim | Right mouse | AIM |
+| Reload | R | RLD |
+| Jump | Space | JUMP |
+| Switch weapon | 1–5 / Q | SWAP |
+| Camera | C | CAM |
+| Pause | Escape | MENU |
+
+## Project structure
+
+- `game/` — canonical static game and deploy root.
+- `game/src/` — campaign, runtime, input, arenas, configuration, and arsenal.
+- `game/assets404/` — procedural Three.js asset modules.
+- `tests/` — focused tests for current game systems.
+- `.tools/` — official 404 gate/ship recipe and current browser/performance tools.
+- `docs/` — story, architecture, compliance, and cleanup records.
+
+There is one game source and one deployment root: `game/`.
+
+## Development
+
+Requires Node.js 22 or newer.
+
+```bash
 npm install
-python -m http.server 8000 --directory export/web
+npm start
 ```
 
-Open [the competition game](http://127.0.0.1:8000/jam/). The root URL is the preserved legacy implementation for engineering reference and is **not** the judged build. Deploy using the visible button; the game does not auto-start for automation.
-
-Desktop: WASD move, mouse aim, left click fire, right click aim down sights, Shift sprint, Space jump, R reload, 1–5 choose a weapon, Q cycle weapons, C switch between first-person and two shoulder cameras, Esc pause. On mobile: use the left movement stick, drag the right side to look, and tap the visible FIRE, AIM, RLD, JUMP, SWAP, CAM, or MENU controls. Walk straight up the stair treads; no jump is required.
-
-The five loadouts are ARX-7 assault rifle, Kestrel-9 SMG, BR-12 shotgun, Vesper marksman rifle, and Atlas-56 LMG. Each has its own capacity, reserve, damage, rate, recoil, spread, range, reload time, and procedural silhouette.
+Open `http://127.0.0.1:8080/`.
 
 ## Verification
 
-```powershell
+```bash
+npm test
+npm run test:browser
+npm run jam:campaign
+npm run jam:milestone
 npm run jam:ship
-npm run jam:test
-node .tools/campaign-playtest.mjs
-npm run jam:gate -- http://127.0.0.1:8000/jam/
-node --test test/jam-campaign.test.mjs
 ```
 
-`jam:ship` checks the code-authored asset workflow. `jam:test` drives the first mission from real start to real extraction and checks next-level progression. The campaign playtest verifies all four sites and modes, weapon/camera/pause behavior, actual stair climbing, Commander activation and defeat, screenshots, console errors, and missing requests. The official gate simulates a 390×844 mobile device on 4G and checks readiness, real touch start and movement, transfer size, draw calls, triangles, console errors, and missing assets. It writes local evidence to `_jam/`; browser playtests write to `artifacts/`. These directories are not committed.
+To run the official 404 mobile gate against a deployed or local URL:
 
-The root repository retains the older FPS implementation and its test/tooling as a reference. The jam build uses separate modules in `export/web/jam/src/` for campaign data, weapon profiles, input, arena creation, and runtime; `export/web/jam/assets404/` contains reusable procedural 3D components. The static game needs no backend endpoints. The image used behind the briefing is an original AI-generated 2D image, optimized as WebP; it is not 3D content. See [asset notice](ASSET_NOTICE.md) and [campaign redesign notes](docs/CAMPAIGN_REDESIGN.md).
+```bash
+npm run jam:gate -- http://127.0.0.1:8080/
+```
 
-Copyright (c) 2026 Dairus Okoh. Licensed under [MIT](LICENSE).
+The public competition contract is `window.__READY__` and `window.__GAME__`.
+Safe diagnostics are available at `window.game.debug`.
+
+## Deployment
+
+Deploy the contents of `game/` as a static site. The game has no server API,
+database, play counter, or required same-origin endpoint. The only runtime
+library request is Three.js from the jsDelivr CDN, which the official 404 gate
+recognizes as an allowed CDN dependency.
+
+## Credits and licensing
+
+Created by **Dairus Okoh** for the 404 Game Jam. Barlow Condensed is included
+under its OFL license in `game/fonts/OFL.txt`. The official 404 recipe retains
+its own license in `.tools/404-game-recipe.LICENSE`.
+
+Copyright (c) 2026 Dairus Okoh. See [LICENSE](LICENSE).

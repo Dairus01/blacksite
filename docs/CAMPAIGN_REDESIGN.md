@@ -8,9 +8,9 @@ The previous jam build proved the asset contract and official gate but offered o
 
 - `src/campaign.js` defines four acts, four sites, four modes, and 100 distinct operations. It keeps selected mission, selected weapon, and highest completion in local storage. Field upgrades remain run-only.
 - `src/arsenal.js` defines five weapon stat profiles and six upgrade modifiers without modifying shared weapon definitions.
-- `src/variant-arena.js` adds DRYDOCK, QUARRY, and SUBSTATION to the existing BLACKSITE. Every solid 3D item is composed from Three.js geometry. Each site provides terrain, cover, spawns, collision, a twelve-tread staircase, a raised deck, and extraction.
-- `src/main-v2.js` owns the runtime simulation: input, camera, enemy wave pressure, hits, intel, Commander, extraction, scoring, results, restart, and truthful `__GAME__` telemetry.
-- `assets404/rifle.js` shares a procedural firing rig across five weapon variants, with code-authored suppressor, shotgun tube/shell loading, marksman optic, and LMG bipod/ammunition details. `assets404/soldier.js` provides articulated hostile and player-avatar figures with speed-driven gait and human facial features.
+- `game/src/variant-arena.js` adds DESERT COMMS, FROZEN OUTPOST, and HARBOR DISTRICT to BLACKSITE. Every solid 3D item is composed from Three.js geometry. Each site provides terrain, cover, spawns, collision, a twelve-tread staircase, a raised deck, and extraction.
+- `game/src/main.js` owns the runtime simulation: input, camera, enemy wave pressure, hits, intel, Commander, extraction, scoring, results, restart, and truthful `__GAME__` telemetry.
+- `game/assets404/rifle.js` shares a procedural firing rig across five weapon variants, with code-authored suppressor, shotgun tube/shell loading, marksman optic, and sidearm details. `game/assets404/soldier.js` provides articulated hostile and player-avatar figures with speed-driven gait and human facial features.
 - `index.html` and `style.css` provide the narrative briefing, level/loadout selector, field guide, pause menu, HUD, touch controls, boss bar, results, and upgrades. The briefing background is original AI-generated 2D art, compressed to WebP. It is not a 3D asset.
 
 ## Discarded approaches

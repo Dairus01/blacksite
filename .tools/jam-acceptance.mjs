@@ -4,7 +4,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
 
-const root = path.resolve('export/web/jam');
+const root = path.resolve('game');
 const out = path.resolve('artifacts/jam-acceptance');
 fs.mkdirSync(out, { recursive: true });
 const mime = new Map([

@@ -1,7 +1,7 @@
 # Milestone 1 Engineering Review
 
 Date: 2026-09-22  
-Judged entry: `export/web/jam/`  
+Judged entry: `game/`
 Disposition: **SHIP**
 
 ## Implemented scope
