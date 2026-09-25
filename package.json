@@ -2,7 +2,7 @@
   "name": "project-blacksite",
   "version": "1.0.0",
   "private": true,
-  "description": "PROJECT BLACKSITE — an original procedural Three.js tactical FPS built for the 404 Game Jam.",
+  "description": "PROJECT BLACKSITE - an original procedural Three.js tactical FPS built for the 404 Game Jam.",
   "scripts": {
     "start": "node .tools/serve.mjs",
     "perf:probe": "node .tools/perf_probe.mjs game",
@@ -13,14 +13,25 @@
     "jam:milestone": "node .tools/milestone1-review.mjs",
     "test": "npm run test:unit",
     "test:unit": "node --test tests/*.test.mjs",
-    "test:browser": "node .tools/jam-acceptance.mjs"
+    "test:browser": "node .tools/jam-acceptance.mjs",
+    "test:systems": "node .tools/systems-playtest.mjs"
   },
-  "keywords": ["threejs", "browser-game", "first-person-shooter", "game-ai", "404-game-jam"],
+  "keywords": [
+    "threejs",
+    "browser-game",
+    "first-person-shooter",
+    "game-ai",
+    "404-game-jam"
+  ],
   "author": "Dairus Okoh",
   "license": "MIT",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
-  "dependencies": { "three": "0.185.1" },
+  "dependencies": {
+    "three": "0.185.1"
+  },
   "devDependencies": {
     "playwright-core": "^1.62.1",
     "puppeteer": "^25.8.0"

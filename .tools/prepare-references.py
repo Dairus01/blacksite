@@ -27,15 +27,4 @@ for i in range(1,11):
  for row in range(2):
   for col in range(2): im.crop((col*w//2,row*h//2,(col+1)*w//2,(row+1)*h//2)).save(W/'reference-crops'/f'board-{i:02}-{row}-{col}.jpg',quality=94)
 (D/'MEDIA_MANIFEST.json').write_text(json.dumps(m,indent=2,ensure_ascii=False),encoding='utf-8')
-# 15-second editorial cut. Own supplied reference video is only a skippable 2D memory.
-order=[3,0,5,2,4,1]; starts=[4.5,1.5,0.5,0.2,1.0,0.25]
-parts=[]
-for j,(idx,start) in enumerate(zip(order,starts)):
- out=W/'media-analysis'/f'memory-{j}.mp4'; parts.append(out)
- subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-y','-ss',str(start),'-i',str(R/'Sep 25 - 01_14'/m['videos'][idx]['filename']),'-t','2.5','-vf','scale=960:540','-c:v','libx264','-preset','medium','-crf','23','-an',str(out)],check=True)
-concat=W/'media-analysis'/'concat.txt'; concat.write_text('\n'.join("file '"+p.as_posix()+"'" for p in parts))
-(R/'game/media').mkdir(exist_ok=True)
-subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-y','-f','concat','-safe','0','-i',str(concat),'-c','copy','-movflags','+faststart',str(R/'game/media/memory.mp4')],check=True)
-for idx in [1,2,3,6]:
- im=Image.open(R/'Sep 25 - 01_14'/m['images'][idx]['filename']); im.thumbnail((720,540)); im.save(R/'game/media'/f'board-{idx}.webp',quality=78)
-print('Annotated frames, cropped boards and 15-second memory prepared.')
+print('Annotated reference frames and cropped boards prepared. Run encode-memory.py separately for production derivatives.')

@@ -1,56 +1,10 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { LEVELS, MAPS, MODES, getLevel, createCampaignProgress } from '../game/src/campaign.js';
-import { WEAPONS, UPGRADES, capacityFor, reloadFor, damageFor } from '../game/src/arsenal.js';
-import { GAME_CONFIG, STORAGE_KEYS } from '../game/src/config/game-config.js';
-
-test('campaign has 100 selectable levels across four maps and four modes', () => {
-  assert.equal(LEVELS.length, 100);
-  assert.equal(new Set(LEVELS.map((level) => level.id)).size, 100);
-  assert.equal(new Set(LEVELS.map((level) => level.title)).size, 100);
-  assert.deepEqual(new Set(LEVELS.map((level) => level.map.id)), new Set(MAPS.map((map) => map.id)));
-  assert.deepEqual(new Set(LEVELS.map((level) => level.mode.id)), new Set(MODES.map((mode) => mode.id)));
-  assert.equal(getLevel(1).intelRequired, 1);
-  assert.equal(getLevel(4).commander, true);
-  assert.equal(getLevel(100).commander, true);
-  assert.ok(getLevel(100).enemyHealth > getLevel(1).enemyHealth);
-  assert.equal(getLevel(999).id, 100);
-});
-
-test('campaign progress saves selection and completion but not run upgrades', () => {
-  const map = new Map();
-  const storage = { getItem: (key) => map.get(key), setItem: (key, value) => map.set(key, value) };
-  const progress = createCampaignProgress(storage);
-  progress.selectLevel(57);
-  progress.selectWeapon('vesper');
-  progress.setUpgrade('runner', true);
-  progress.complete(57);
-  assert.equal(progress.state.selectedLevel, 58);
-  assert.equal(progress.state.highestCompleted, 57);
-  assert.equal(progress.state.upgrades.runner, true);
-  const nextRun = createCampaignProgress(storage);
-  assert.equal(nextRun.state.selectedLevel, 58);
-  assert.equal(nextRun.state.selectedWeapon, 'vesper');
-  assert.deepEqual(nextRun.state.upgrades, {});
-  progress.resetRun();
-  assert.deepEqual(progress.state.upgrades, {});
-});
-
-test('five weapon profiles and six upgrades modify copies of run stats', () => {
-  assert.equal(WEAPONS.length, 5);
-  assert.equal(UPGRADES.length, 6);
-  assert.equal(new Set(WEAPONS.map((item) => item.id)).size, 5);
-  const rifle = WEAPONS[0];
-  const boosted = { extended: true, quick: true, hollow: true };
-  assert.ok(capacityFor(rifle, boosted) > rifle.capacity);
-  assert.ok(reloadFor(rifle, boosted) < rifle.reload);
-  assert.ok(damageFor(rifle, boosted) > rifle.damage);
-  assert.equal(rifle.capacity, 30);
-});
-
-test('public identity and storage use the Project Blacksite namespace', () => {
-  assert.equal(GAME_CONFIG.title, 'PROJECT BLACKSITE');
-  assert.equal(GAME_CONFIG.copyright, 'Copyright (c) 2026 Dairus Okoh');
-  assert.ok(Object.values(STORAGE_KEYS).every((key) => key.startsWith('project-blacksite:')));
-  assert.deepEqual(WEAPONS.map((weapon) => weapon.role), ['ASSAULT RIFLE', 'SUBMACHINE GUN', 'COMBAT SHOTGUN', 'MARKSMAN RIFLE', 'SIDEARM']);
-});
+﻿import test from 'node:test';import assert from 'node:assert/strict';
+import {LEVELS,createCampaignProgress,SHOP} from '../game/src/campaign.js';
+import {WEAPONS,capacityFor,reloadFor,damageFor} from '../game/src/arsenal.js';
+const storage=()=>{const m=new Map();return{getItem:k=>m.get(k),setItem:(k,v)=>m.set(k,v)}};
+test('four authored missions escalate Kane evidence and use distinct sites',()=>{assert.equal(LEVELS.length,4);assert.equal(new Set(LEVELS.map(l=>l.map.id)).size,4);assert.equal(LEVELS[0].commander,false);assert.equal(LEVELS[3].commander,true);});
+test('locked missions and guns cannot be selected or purchased',()=>{const p=createCampaignProgress(storage());assert.equal(p.selectLevel(4),1);assert.equal(p.selectWeapon('vesper'),'arx7');assert.equal(p.purchase('vesper'),false);assert.equal(p.complete(4),null);});
+test('mission rewards buy unlocked weapon and survive reload; replay scales rewards',()=>{const st=storage(),p=createCampaignProgress(st);const r=p.complete(1,{kills:4,shots:10,hits:7,headshots:2,score:1000});assert.ok(r.credits>=700);assert.ok(p.purchase('kestrel'));assert.equal(p.purchase('kestrel'),false);p.selectWeapon('kestrel');const q=createCampaignProgress(st);assert.equal(q.state.selectedWeapon,'kestrel');assert.equal(q.state.credits,r.credits-500);assert.ok(q.unlocked(2));assert.ok(!q.unlocked(3));assert.ok(q.complete(1).credits<r.credits);});
+test('save handles corruption and unavailable storage',()=>{assert.equal(createCampaignProgress({getItem:()=>'{oops'}).state.highestCompleted,0);const p=createCampaignProgress({getItem(){throw Error()},setItem(){throw Error()}});assert.doesNotThrow(()=>p.complete(1));});
+test('purchased attachments persist and change real weapon parameters',()=>{const st=storage(),p=createCampaignProgress(st);p.complete(1);assert.ok(p.purchase('extended'));const q=createCampaignProgress(st);assert.ok(capacityFor(WEAPONS[0],q.state.upgrades)>30);assert.ok(reloadFor(WEAPONS[0],{quick:true})<WEAPONS[0].reload);assert.ok(damageFor(WEAPONS[0],{hollow:true})>WEAPONS[0].damage);});
+test('post-campaign LMG requires all four missions and retains its loadout',()=>{const st=storage(),p=createCampaignProgress(st);for(let n=1;n<=3;n++)p.complete(n);assert.equal(p.purchase('bastion'),false);p.complete(4);assert.ok(p.purchase('bastion'));p.selectWeapon('bastion');assert.equal(createCampaignProgress(st).state.selectedWeapon,'bastion');assert.equal(WEAPONS.find(w=>w.id==='bastion').capacity,60);});

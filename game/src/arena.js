@@ -1,3 +1,4 @@
+import { addFacilityDetail, makeTerminal } from '../assets404/facility-detail.js';
 import makeCrate from '../assets404/crate.js';
 import makeBarrier from '../assets404/barrier.js';
 import makeLight from '../assets404/light-fixture.js';
@@ -19,9 +20,11 @@ export function buildArena(THREE, scene) {
   const world = new THREE.Group();
   world.name = 'blacksiteVerticalSlice';
   scene.add(world);
+  const updateWeather=addFacilityDetail(THREE,world);
+  const terminal=makeTerminal(THREE);terminal.position.set(-6.5,0,-.7);world.add(terminal);
   const colliders = [];
   const addCollider = (x, z, halfX, halfZ, vision = true) => colliders.push({ x, z, halfX, halfZ, vision });
-  const asphalt = new THREE.MeshStandardMaterial({ color: 0x8d9493, map: makeSurfaceTexture(THREE, 'asphalt'), roughness: 0.98 });
+  const asphalt = new THREE.MeshStandardMaterial({ color: 0x8d9493, map: makeSurfaceTexture(THREE, 'asphalt'), roughness: 0.38 });
   const concrete = new THREE.MeshStandardMaterial({ color: 0xa9afae, map: makeSurfaceTexture(THREE, 'concrete'), roughness: 0.96 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x10171b, roughness: 0.56, metalness: 0.48 });
   const steel = new THREE.MeshStandardMaterial({ color: 0x29343a, roughness: 0.52, metalness: 0.58 });
@@ -34,8 +37,8 @@ export function buildArena(THREE, scene) {
       side: THREE.BackSide,
       depthWrite: false,
       uniforms: {
-        topColor: { value: new THREE.Color(0x102338) },
-        horizonColor: { value: new THREE.Color(0x7b4038) },
+        topColor: { value: new THREE.Color(0x081723) },
+        horizonColor: { value: new THREE.Color(0x344958) },
         groundColor: { value: new THREE.Color(0x0b1219) },
       },
       vertexShader: 'varying vec3 vWorld; void main(){ vec4 w=modelMatrix*vec4(position,1.0); vWorld=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }',
@@ -46,7 +49,7 @@ export function buildArena(THREE, scene) {
   world.add(sky);
 
   addBox(THREE, world, [32, 0.24, 44], [0, -0.12, 0], asphalt).receiveShadow = true;
-  addBox(THREE, world, [7.2, 0.035, 43], [0, 0.02, 0], new THREE.MeshStandardMaterial({ color: 0x394143, roughness: 0.98 }));
+  addBox(THREE, world, [7.2, 0.035, 43], [0, 0.02, 0], new THREE.MeshStandardMaterial({ color: 0x394143, roughness: 0.38 }));
   for (const x of [-3.7, 3.7]) addBox(THREE, world, [0.18, 0.045, 43], [x, 0.032, 0], amber);
   for (let z = -19; z <= 19; z += 4) addBox(THREE, world, [0.12, 0.05, 1.7], [0, 0.04, z], amber);
   for (const x of [-14.5, 14.5]) addBox(THREE, world, [2.5, 0.20, 44], [x, 0.02, 0], concrete);
@@ -100,7 +103,7 @@ export function buildArena(THREE, scene) {
   addCollider(-6.5, -12.33, 5.5, 0.20);
   addCollider(-10.05, 2.33, 1.95, 0.20);
   addCollider(-2.95, 2.33, 1.95, 0.20);
-  addCollider(-6.5, 1.1 - 5, 3.4, 0.15);
+  addCollider(-4.8, 1.1 - 5, 3.4, 0.15);
   addCollider(-10.95, 1.1 - 5, 0.85, 0.15);
   for (const z of [-10.7, -9.6, -8.5]) addCollider(-2.6, z, 0.65, 0.34);
   addCollider(-4.05, -0.75, 1.3, 0.46);
@@ -210,7 +213,7 @@ export function buildArena(THREE, scene) {
     node.receiveShadow = true;
   });
   return {
-    world,
+    world, updateWeather,
     building,
     extraction,
     extractionPosition: extraction.position,
@@ -220,6 +223,6 @@ export function buildArena(THREE, scene) {
     floorHeightAt,
     blocked,
     lineBlocked,
-    stair: { x: stairX, z: stairZ, ...stair },
+    stair: { ...stair, x: stairX, z: stairZ },
   };
 }

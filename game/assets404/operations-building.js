@@ -90,7 +90,7 @@ export default function generate(THREE) {
   mesh(THREE, root, [1.7, 3.4, 0.24], [-4.45, 1.7, 1.1], concreteDark, 'wall');
   mesh(THREE, root, [1.4, 0.72, 0.24], [-3.0, 3.04, 1.1], concreteDark, 'wall');
   for (const x of [-3.75, -2.25]) mesh(THREE, root, [0.16, 3.25, 0.42], [x, 1.62, 1.1], steel);
-  mesh(THREE, root, [4.5, 0.22, 6.0], [-2.85, STAIR_SPEC.count * STAIR_SPEC.rise, -4.0], steel, 'upperFloor');
+  mesh(THREE, root, [4.5, 0.22, 6.0], [-2.85, STAIR_SPEC.count * STAIR_SPEC.rise - .11, -4.0], steel, 'upperFloor');
   const stairs = makeStairs(THREE);
   stairs.position.set(-3.05, 0, 0.92);
   root.add(stairs);

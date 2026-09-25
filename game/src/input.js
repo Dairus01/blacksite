@@ -36,6 +36,8 @@ export function createInput(canvas) {
   const clearActions = () => {
     keys.clear();
     state.fire = false;
+    state.touchSprint=false;
+    state.yawDelta=0;state.pitchDelta=0;
     state.ads = false;
     state.reloadPressed = false;
     state.jumpPressed = false;
@@ -57,7 +59,7 @@ export function createInput(canvas) {
     state.pitchDelta += event.movementY;
   });
   addEventListener('mousedown', (event) => {
-    if (!state.enabled) return;
+    if (!state.enabled || event.target !== canvas) return;
     if (event.button === 0) state.fire = true;
     if (event.button === 2) state.ads = true;
   });
@@ -130,7 +132,7 @@ export function createInput(canvas) {
     movement() {
       const x = Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft')) + state.moveX;
       const y = Number(keys.has('KeyW') || keys.has('ArrowUp')) - Number(keys.has('KeyS') || keys.has('ArrowDown')) + state.moveY;
-      state.sprint = keys.has('ShiftLeft') || keys.has('ShiftRight');
+      state.sprint = keys.has('ShiftLeft') || keys.has('ShiftRight') || Boolean(state.touchSprint);
       const length = Math.hypot(x, y);
       return length > 1 ? { x: x / length, y: y / length } : { x, y };
     },

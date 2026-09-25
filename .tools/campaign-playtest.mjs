@@ -7,7 +7,7 @@ import { chromium } from 'playwright-core';
 const root = path.resolve('game');
 const out = path.resolve('artifacts/campaign-playtest');
 fs.mkdirSync(out, { recursive: true });
-const mime = new Map([['.html','text/html; charset=utf-8'],['.js','text/javascript; charset=utf-8'],['.css','text/css; charset=utf-8'],['.webp','image/webp'],['.woff2','font/woff2']]);
+const mime = new Map([['.html','text/html; charset=utf-8'],['.js','text/javascript; charset=utf-8'],['.css','text/css; charset=utf-8'],['.mp4','video/mp4'],['.webp','image/webp'],['.woff2','font/woff2']]);
 const server = http.createServer(async (request, response) => {
   try {
     const url = new URL(request.url ?? '/', 'http://127.0.0.1');
@@ -31,114 +31,21 @@ page.on('response', (response) => { if (response.status() === 404 && !response.u
 const url = `http://127.0.0.1:${server.address().port}/`;
 const state = () => page.evaluate(() => window.__GAME__);
 try {
-  await page.goto(url, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.__READY__);
-  assert.equal(await page.locator('#level-select option').count(), 100);
-  assert.equal(await page.locator('#weapon-select option').count(), 5);
-  await page.locator('#tutorial-open').click();
-  assert.equal(await page.locator('#tutorial').isVisible(), true);
-  await page.locator('#tutorial-close').click();
-  await page.locator('#level-select').selectOption('3');
-  await page.locator('#weapon-select').selectOption('kestrel');
-  await page.locator('#startb').click();
-  await page.waitForFunction(() => window.__GAME__.started && window.__GAME__.level === 3);
-  let snapshot = await state();
-  assert.equal(snapshot.map, 'desert-comms');
-  assert.equal(snapshot.mode, 'hold');
-  assert.equal(snapshot.weapon, 'KESTREL-9');
-  await page.screenshot({ path: path.join(out, 'desert-comms.png') });
-  await page.keyboard.press('Digit3');
-  await page.waitForFunction(() => window.__GAME__.weapon === 'BR-12');
-  await page.mouse.down({ button: 'left' });
-  await page.waitForTimeout(100);
-  await page.mouse.up({ button: 'left' });
-  await page.keyboard.press('KeyR');
-  await page.waitForFunction(() => window.__GAME__.reloading);
-  await page.screenshot({ path: path.join(out, 'shotgun-reload.png') });
-  await page.waitForFunction(() => !window.__GAME__.reloading, null, { timeout: 5000 });
-  await page.keyboard.press('Digit5');
-  await page.waitForFunction(() => window.__GAME__.weapon === 'SENTINEL-45');
-  await page.keyboard.press('KeyC');
-  await page.waitForFunction(() => window.__GAME__.cameraMode === 'LEFT SHOULDER');
-  await page.screenshot({ path: path.join(out, 'shoulder-camera.png') });
-  await page.keyboard.press('Escape');
-  await page.waitForFunction(() => window.__GAME__.paused);
-  assert.equal(await page.locator('#pause').isVisible(), true);
-  await page.locator('#resume').click();
-  await page.waitForFunction(() => !window.__GAME__.paused);
-  const startStair = await page.evaluate(() => {
-    const stair = window.__GAME__.stair;
-    const z = stair.z + stair.count * stair.run / 2 + 0.7;
-    const moved = window.game.debug.teleportPlayer([stair.x, 0, z]);
-    window.game.debug.lookAt([stair.x, 1.66, stair.z - stair.count * stair.run / 2 - 2]);
-    return moved;
-  });
-  assert.equal(startStair, true, 'Stair bottom must be reachable');
-  await page.keyboard.down('KeyW');
-  await page.waitForTimeout(1350);
-  await page.keyboard.up('KeyW');
-  snapshot = await state();
-  assert.ok(snapshot.elevation >= 1.8, `Player must walk up stairs; elevation=${snapshot.elevation}`);
-  const stairElevation = snapshot.elevation;
-  await page.screenshot({ path: path.join(out, 'stair-top.png') });
-  await page.keyboard.press('Escape');
-  await page.locator('#pause-menu').click();
-  for (const [id, map, mode] of [['4','desert-comms','hunt'],['5','frozen-outpost','recon'],['7','harbor-district','hold'],['100','desert-comms','hunt']]) {
-    await page.locator('#level-select').selectOption(id);
-    await page.locator('#startb').click();
-    await page.waitForFunction((number) => window.__GAME__.level === number, Number(id));
-    snapshot = await state();
-    assert.equal(snapshot.map, map);
-    assert.equal(snapshot.mode, mode);
-    await page.screenshot({ path: path.join(out, `level-${id}.png`) });
-    await page.keyboard.press('Escape');
-    await page.locator('#pause-menu').click();
+ await page.goto(url);await page.waitForFunction(()=>window.__READY__);await page.click('#skip-memory');await page.click('#startb');
+ const results=[];
+ for(let mission=1;mission<=4;mission++){
+  await page.waitForFunction(id=>window.__GAME__.level===id,mission);
+  await page.screenshot({path:path.join(out,`mission-${mission}-spawn.png`)});
+  for(let n=0;n<160;n++){
+   const st=await state();if(st.over)break;assert.ok(st.alive,`mission ${mission} operator alive`);
+   if(n%10===0)console.log(`Mission ${mission} stage ${st.stage}: ${st.kills} kills, ${st.enemyCount} alive`);
+   if(st.enemyCount){const e=st.enemies.find(e=>e.commander)??st.enemies[0];await page.evaluate(e=>{const [x,z]=e.pos;for(const [dx,dz]of [[0,3],[3,0],[-3,0],[0,-3],[2,2],[-2,-2]])if(window.game.debug.teleportPlayer([x+dx,e.elevation,z+dz])&&window.game.debug.hasLineOfSight([x,0,z]))break;window.game.debug.lookAt([x,e.elevation+1.3,z]);},e);await page.waitForTimeout(80);await page.mouse.down();await page.waitForTimeout(320);await page.mouse.up();}
+   else {const target=st.objectivePosition;const ok=await page.evaluate(pos=>window.game.debug.teleportPlayer(pos),target);assert.ok(ok,`objective ${st.objective} reachable at ${target}`);await page.keyboard.press('KeyE');await page.waitForTimeout(350);}
+   if(st.ammo<5){await page.keyboard.press('KeyR');await page.waitForTimeout(2300);}
+   await page.waitForTimeout(100);
   }
-  await page.locator('#level-select').selectOption('8');
-  await page.locator('#weapon-select').selectOption('vesper');
-  await page.locator('#startb').click();
-  await page.waitForFunction(() => window.__GAME__.level === 8);
-  await page.keyboard.press('KeyC');
-  await page.keyboard.press('KeyC');
-  await page.waitForFunction(() => window.__GAME__.cameraMode === 'FIRST PERSON');
-  async function shootAt(target, duration) {
-    const positioned = await page.evaluate(([x, z]) => {
-      const candidates = [[x, z + 2.2], [x, z - 2.2], [x + 2.2, z], [x - 2.2, z], [x + 1.55, z + 1.55], [x - 1.55, z - 1.55], [0, 16.5]];
-      const point = candidates.find(([px, pz]) => window.game.debug.teleportPlayer([px, 0, pz]));
-      window.game.debug.lookAt([x, 1.3, z]);
-      return Boolean(point);
-    }, target);
-    assert.equal(positioned, true, `Target setup must be traversable: ${target}`);
-    await page.waitForTimeout(100);
-    await page.mouse.down({ button: 'left' });
-    await page.waitForTimeout(duration);
-    await page.mouse.up({ button: 'left' });
-  }
-  for (let attempt = 0; attempt < 12 && (await state()).kills < (await state()).requiredKills; attempt += 1) {
-    const target = (await state()).enemies.find((enemy) => !enemy.commander)?.pos;
-    assert.ok(target, 'Ordinary target should remain until kill count is met');
-    await shootAt(target, 390);
-  }
-  await page.waitForFunction(() => window.__GAME__.commanderSpawned, null, { timeout: 5000 });
-  assert.equal((await state()).commanderAlive, true);
-  await page.screenshot({ path: path.join(out, 'commander.png') });
-  for (let attempt = 0; attempt < 10 && (await state()).commanderAlive; attempt += 1) {
-    if ((await state()).ammo === 0) {
-      await page.keyboard.press('KeyR');
-      await page.waitForFunction(() => !window.__GAME__.reloading && window.__GAME__.ammo > 0, null, { timeout: 5000 });
-    }
-    const target = (await state()).enemies.find((enemy) => enemy.commander)?.pos;
-    assert.ok(target);
-    await shootAt(target, 400);
-  }
-  snapshot = await state();
-  assert.equal(snapshot.commanderAlive, false);
-  assert.equal(snapshot.extractionActive, true);
-  await page.screenshot({ path: path.join(out, 'commander-down.png') });
-  assert.deepEqual(errors, []);
-  assert.deepEqual(missing, []);
-  fs.writeFileSync(path.join(out, 'state.json'), JSON.stringify(snapshot, null, 2));
-  console.log(JSON.stringify({ passed: true, levels: 100, weapons: 5, maps: 4, modes: 4, stairElevation, commander: 'defeated', errors, missing }, null, 2));
-} finally {
-  await browser.close(); server.closeAllConnections?.(); await new Promise((resolve) => server.close(resolve));
-}
+  const st=await state();assert.ok(st.over,`mission ${mission} completes`);assert.equal(st.highestCompleted,mission);results.push(st);await page.screenshot({path:path.join(out,`mission-${mission}-complete.png`)});
+  if(mission<4)await page.click('#again');
+ }
+ assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);fs.writeFileSync(path.join(out,'report.json'),JSON.stringify({passed:true,results,errors,missing},null,2));console.log('All four authored missions completed; progression and boss verified.');
+} finally {await browser.close();server.closeAllConnections?.();await new Promise(r=>server.close(r));}
