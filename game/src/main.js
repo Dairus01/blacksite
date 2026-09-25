@@ -8,7 +8,7 @@ import makeIntel from '../assets404/intel-pickup.js';
 import { createInput } from './input.js';
 import { buildArena } from './arena.js';
 import { buildMissionArena } from './mission-arena.js';
-import { ROUTES, TRAINING } from './missions.js';
+import { ROUTES, TRAINING, TRAINING_HINTS } from './missions.js';
 import { setupMemory } from './memory.js';
 import { setupInterface } from './interface.js';
 import { LEVELS, SHOP, getLevel, createCampaignProgress } from './campaign.js';
@@ -258,7 +258,8 @@ function advanceStage(){
  if(playMode==='campaign'&&old.reinforcements){spawnAlertSquad(old.reinforcements);status(`SENTINEL RESPONSE · ${old.reinforcements.length} HOSTILES`,'var(--red)',3);}
 }
 function updateObjective(){
- if(training>=0){objective(`TRAINING: ${TRAINING[training]}`,TRAINING[training]==='INTERACT'?'PRESS E OR TAP USE; APPROACH TERMINALS TO ACTIVATE':'COMPLETE THE ACTION TO CONTINUE',null,'TRAINING');return;}
+ ui.hud.classList.toggle('training',training>=0);
+ if(training>=0){const step=TRAINING[training];objective(`TRAINING: ${step}`,TRAINING_HINTS[step],null,'TRAINING');ui['mission-progress'].textContent=`STEP ${String(training+1).padStart(2,'0')} / ${TRAINING.length}`;return;}
  if(playMode==='survival'){objective(`SURVIVE WAVE ${wave}`,`${mission.kills}/${waveTarget} HOSTILES · E AT BEACON TO BANK REWARDS`,arena.extractionPosition,'EXTRACT');return;}
  if(playMode==='team'){objective('TEAM BATTLE',`${mission.kills}/12 ECHO · ${teamLosses}/12 SENTINEL`,enemies.find(e=>e.alive)?.object.position,'HOSTILE');return;}
  if(playMode==='extraction'){const target=arena.cachePositions[mission.intel%arena.cachePositions.length];objective(mission.intel<3?'RECOVER FIELD CACHE':'REACH EXTRACTION',mission.intel<3?`${mission.intel}/3 CACHES · E / USE TO RECOVER`:'BANK YOUR INTELLIGENCE',mission.intel<3?new THREE.Vector3(...target):arena.extractionPosition,'CACHE');return;}
@@ -537,7 +538,7 @@ for(const [id,label,action] of [
  ['frag','FRAG',()=>useEquipment('frag')],['heal','HEAL',()=>useEquipment('medkit')],['smoke','SMOKE',()=>useEquipment('smoke')],['plate','PLATE',()=>useEquipment('plate')],
  ['map','MAP',openTacticalMap]
 ]){const b=document.createElement('button');b.id=id;b.textContent=label;b.setAttribute('aria-label',label);b.onclick=action;ui.touch.append(b);}
-const trainButton=document.createElement('button');trainButton.id='begin-training';trainButton.textContent='BEGIN INTERACTIVE TRAINING';trainButton.onclick=()=>{training=0;startGame();clearActors();updateObjective();};ui.tutorial.querySelector('.dialog').append(trainButton);
+$('begin-training').onclick=()=>{training=0;startGame();clearActors();updateObjective();};
 $('camera-button').textContent='RUN';$('camera-button').onclick=()=>{input.state.touchSprint=!input.state.touchSprint;};
 const deathMenu=document.createElement('button');deathMenu.textContent='QUIT TO MENU';deathMenu.onclick=()=>interfaceUI.confirmQuit();ui.death.querySelector('.menu-actions').append(deathMenu);
 const checkpointButton=document.createElement('button');checkpointButton.textContent='RESTART CHECKPOINT';checkpointButton.onclick=respawn;ui.pause.querySelector('.pause-actions').append(checkpointButton);
