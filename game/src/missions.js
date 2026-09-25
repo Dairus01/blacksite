@@ -2,10 +2,9 @@ export const ROUTES={
  blacksite:[
   {kind:'reach',title:'REACH THE SECURITY PERIMETER',pos:[0,0,9.8]},
   {kind:'combat',title:'ELIMINATE THE PATROL',kills:2},
-  {kind:'interact',title:'ACCESS THE AEGIS TERMINAL',pos:[-6.5,0,.3],text:'SYSTEM: Credential recognized — E. Kane. DANIEL: No. Kane is dead.'},
-  {kind:'hold',title:'RECOVER THE MISSING DATA',pos:[-6.5,0,.3],seconds:8},
-  {kind:'combat',title:'SURVIVE THE COUNTERATTACK',kills:4},
-  {kind:'extract',title:'REACH EXTRACTION'}],
+  {kind:'interact',title:'ACCESS THE AEGIS TERMINAL',pos:[-6.5,0,.3],autoRange:1.8,counterattack:true,text:'SYSTEM: Credential recognized — E. Kane. DANIEL: No. Kane is dead.'},
+  {kind:'combat',title:'SURVIVE THE COUNTERATTACK',kills:6},
+  {kind:'extract',title:'REACH EXTRACTION TO COMPLETE MISSION'}],
  refinery:[
   {kind:'combat',title:'INFILTRATE THE REFINERY',kills:2},
   {kind:'interact',title:'DISABLE THE WEST RELAY',pos:[-10,0,3],text:'Relay one isolated. AEGIS fragments are moving through the fuel network.'},

@@ -1,5 +1,9 @@
 # Rebuild checkpoint — 25 September 2026
 
+## Terminal counterattack correction
+
+The first mission's terminal previously advanced into an eight-second silent hold. That state requested no new enemies, and approaching the terminal without pressing E left the objective on ACCESS THE AEGIS TERMINAL indefinitely. The terminal now activates on close approach or E. Its four counterattack soldiers spawn together inside the operations room, including when the checkpoint is restarted. Defeating the six total mission hostiles updates the objective to REACH EXTRACTION TO COMPLETE MISSION; reaching the beacon opens the reward screen. `artifacts/jam-acceptance/terminal-counterattack.png` captures the immediate wave, and the browser acceptance test walks through the doorway to verify the trigger, checkpoint replay, and ending.
+
 ## Recovery and evidence
 
 The untouched baseline is on `recovery/pre-media-rebuild-20260925` at `974a7cd`. Media analysis is committed at `636056e`. All 22 original media files remain untouched and outside the deploy root. All six videos were fully decoded into 1,152 frames; all sixteen stills and all six temporal contact sheets were visually inspected before implementation.

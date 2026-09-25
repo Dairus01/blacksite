@@ -110,10 +110,10 @@ function updateHealth() { const max = 100; ui.health.textContent = String(Math.c
 function disposeGroup(group) { if (!group) return; group.traverse((node) => { node.geometry?.dispose?.(); const mats = Array.isArray(node.material) ? node.material : [node.material]; mats.forEach((m) => { m?.map?.dispose?.(); m?.dispose?.(); }); }); group.removeFromParent(); }
 function clearActors() {if(optionalIntel){disposeGroup(optionalIntel);optionalIntel=null;} for(const a of allies)disposeGroup(a.object);allies.length=0; for(const e of effects) disposeGroup(e.object); effects.length=0; for (const enemy of enemies) disposeGroup(enemy.object); enemies.length = 0; for (const pickup of pickups) disposeGroup(pickup.object); pickups.length = 0; }
 function spawnPoints() { return arena.spawns.enemies ?? [arena.spawns.enemy, [0, 1.8], [-5, 1], [5, 0], [-5, -7], [5, -8], [0, -12]]; }
-function spawnEnemy(commander = false) {
+function spawnEnemy(commander = false, pointOverride = null) {
   const spots = spawnPoints();
   const index = (mission.kills + enemies.length) % spots.length;
-  const point = spots[index];
+  const point = pointOverride ?? spots[index];
   const role = commander ? 'commander' : ['rifleman','scout','rifleman','heavy','shock','captain'][(enemies.length + level.id - 1) % 6];
   const actor = makeSoldier(THREE, {role,floorHeight:(x,z)=>arena.floorHeightAt(x,z)});
   actor.position.set(point[0], arena.floorHeightAt(...point) + 0.02, point[1]);
@@ -231,15 +231,27 @@ function saveCheckpoint() {
 function respawn() {
  const saved=checkpoint?structuredClone(checkpoint):null,deaths=player.deaths;
  resetMission();
- if(saved&&playMode==='campaign'){Object.assign(mission,{elapsed:saved.elapsed||0,stage:saved.stage,kills:saved.kills,intel:saved.intel,score:saved.score,headshots:saved.headshots,shots:saved.shots,hits:saved.hits});for(const enemy of enemies)disposeGroup(enemy.object);enemies.length=0;player.position.fromArray(saved.pos);checkpoint=saved;}
+ if(saved&&playMode==='campaign'){Object.assign(mission,{elapsed:saved.elapsed||0,stage:saved.stage,kills:saved.kills,intel:saved.intel,score:saved.score,headshots:saved.headshots,shots:saved.shots,hits:saved.hits});for(const enemy of enemies)disposeGroup(enemy.object);enemies.length=0;player.position.fromArray(saved.pos);checkpoint=saved;if(level.map.id==='blacksite'&&routeNode().kind==='combat'&&mission.stage===3)spawnBlacksiteCounterattack();}
  player.deaths=deaths;stageTime=0;ui.hud.classList.add('on');resume();updateObjective();status('CHECKPOINT RESTORED');
 }
 function showTutorial() { ui.tutorial.classList.add('on'); if (mission.started) { mission.paused = true; input.setEnabled(false); ui.touch.classList.remove('on'); ui.pause.classList.remove('on'); if (document.pointerLockElement) document.exitPointerLock(); } }
 function hideTutorial() { ui.tutorial.classList.remove('on'); if (mission.started && mission.paused) ui.pause.classList.add('on'); }
 function routeNode(){return ROUTES[level.map.id][mission.stage] ?? {kind:'extract',title:'REACH EXTRACTION'};}
+function spawnBlacksiteCounterattack(){
+ const positions=[[-4.9,-2.9],[-6,-3],[-7.2,-2.6],[-8.3,-2.4]];
+ for(let i=0;i<Math.max(0,6-mission.kills);i++){
+  const enemy=spawnEnemy(false,positions[i]);enemy.awareness=2;enemy.state='engage';enemy.cooldown=.85;
+ }
+}
 function advanceStage(){
- const old=routeNode();if(old.text){radio('RECOVERED COMMS',old.text,7);progress.addIntel(old.text);mission.intel++;}
+ const old=routeNode();if(old.text){if(!old.counterattack)radio('RECOVERED COMMS',old.text,7);progress.addIntel(old.text);mission.intel++;}
  mission.stage++;stageTime=0;mission.score+=100;saveCheckpoint();updateObjective();sound(720,.16,.03,'sine',1.3);
+ if(playMode==='campaign'&&old.counterattack){
+  // This is the encounter trigger: make the whole counterattack present now.
+  spawnBlacksiteCounterattack();
+  radio('COMMAND','E. Kane credential recognized. Four Sentinel contacts inside operations. Clear them, then reach extraction.',7);
+  status('COUNTERATTACK · 4 HOSTILES', 'var(--red)',3);
+ }
 }
 function updateObjective(){
  if(training>=0){objective(`TRAINING: ${TRAINING[training]}`,'COMPLETE THE ACTION TO CONTINUE',null,'TRAINING');return;}
@@ -247,7 +259,7 @@ function updateObjective(){
  if(playMode==='team'){objective('TEAM BATTLE',`${mission.kills}/12 ECHO · ${teamLosses}/12 SENTINEL`,enemies.find(e=>e.alive)?.object.position,'HOSTILE');return;}
  if(playMode==='extraction'){const target=arena.cachePositions[mission.intel%arena.cachePositions.length];objective(mission.intel<3?'RECOVER FIELD CACHE':'REACH EXTRACTION',mission.intel<3?`${mission.intel}/3 CACHES · E / USE TO RECOVER`:'BANK YOUR INTELLIGENCE',mission.intel<3?new THREE.Vector3(...target):arena.extractionPosition,'CACHE');return;}
  const node=routeNode();const target=node.pos?new THREE.Vector3(...node.pos):node.kind==='extract'?arena.extractionPosition:enemies.find(e=>e.alive)?.object.position;
- objective(node.title,node.kind==='interact'?'E / USE TO INTERACT':node.kind==='hold'?`HOLD POSITION · ${Math.max(0,Math.ceil(node.seconds-stageTime))}s`:node.kills?`${mission.kills}/${node.kills} HOSTILES`:node.deadline?`${Math.max(0,Math.ceil(node.deadline-stageTime))}s TO DETONATION`:'FOLLOW THE WAYPOINT',target,node.kind==='extract'?'EXTRACT':node.kind==='interact'?'TERMINAL':'OBJECTIVE');
+ objective(node.title,node.kind==='interact'?(node.autoRange?'APPROACH TERMINAL / E TO ACCESS':'E / USE TO INTERACT'):node.kind==='hold'?`HOLD POSITION · ${Math.max(0,Math.ceil(node.seconds-stageTime))}s`:node.kills?`${mission.kills}/${node.kills} HOSTILES`:node.deadline?`${Math.max(0,Math.ceil(node.deadline-stageTime))}s TO DETONATION`:'FOLLOW THE WAYPOINT',target,node.kind==='extract'?'EXTRACT':node.kind==='interact'?'TERMINAL':'OBJECTIVE');
  ui['mission-progress'].textContent=`${level.title} · ${mission.stage+1}/${ROUTES[level.map.id].length}`;
 }
 function evaluateObjective(){
@@ -394,7 +406,7 @@ function updateObjectives(dt){
  if(targetKills>mission.kills+alive&&alive<(playMode==='survival'?Math.min(6,2+Math.floor(wave/2)):level.maxAlive)&&mission.elapsed>1)spawnEnemy();
  if(playMode==='campaign'){
   if(node.kind==='reach'&&player.position.distanceTo(new THREE.Vector3(...node.pos))<2.5)advanceStage();
-  if(node.kind==='interact'&&interaction&&player.position.distanceTo(new THREE.Vector3(...node.pos))<2.5)advanceStage();
+  if(node.kind==='interact'&&player.position.distanceTo(new THREE.Vector3(...node.pos))<(interaction?2.5:(node.autoRange??0)))advanceStage();
   if(node.kind==='hold'){if(player.position.distanceTo(new THREE.Vector3(...node.pos))>6)stageTime=Math.max(0,stageTime-dt);if(stageTime>=node.seconds&&mission.kills>=(node.kills||0))advanceStage();}
   evaluateObjective();
   if(node.deadline&&stageTime>node.deadline)damagePlayer(500,player.position);

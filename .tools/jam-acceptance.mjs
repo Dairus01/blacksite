@@ -61,13 +61,24 @@ try {
   for(let n=0;n<100;n++){
     const st=await state();if(st.over)break;assert.ok(st.alive,'operator survived controlled acceptance encounter');
     if(st.enemyCount){const e=st.enemies[0];await page.evaluate(e=>{const [x,z]=e.pos;for(const [dx,dz] of [[0,4],[4,0],[-4,0],[0,-4]])if(window.game.debug.teleportPlayer([x+dx,e.elevation,z+dz])&&window.game.debug.hasLineOfSight([x,0,z]))break;window.game.debug.lookAt([x,e.elevation+1.3,z]);},e);await page.waitForTimeout(80);await page.mouse.down();await page.waitForTimeout(400);await page.mouse.up();}
-    else if(st.stage===2){await tp([-6.5,0,.3]);await page.keyboard.press('KeyE');}
-    else if(st.stage===3){await tp([-6.5,0,.3]);await page.waitForTimeout(1000);}
-    else if(st.stage===5){await tp([7.6,0,-15.6]);}
+    else if(st.stage===2){
+      // Walk through the actual operations doorway. The terminal must trigger
+      // and show all four attackers without E or an idle defense timer.
+      await tp([-6.5,0,3.4]);
+      await page.evaluate(()=>window.game.debug.lookAt([-6.5,1.66,-.7]));
+      await page.keyboard.down('KeyW');
+      await page.waitForFunction(()=>window.__GAME__.stage===3,null,{timeout:3000});
+      await page.keyboard.up('KeyW');
+      const wave=await state();assert.equal(wave.enemyCount,4);assert.match(wave.objective,/COUNTERATTACK/);
+      await page.screenshot({path:path.join(out,'terminal-counterattack.png')});
+      await page.keyboard.press('Escape');await page.locator('#pause').getByRole('button',{name:'RESTART CHECKPOINT'}).click();
+      await page.waitForFunction(()=>window.__GAME__.stage===3&&window.__GAME__.enemyCount===4);
+    }
+    else if(st.stage===4){await tp([7.6,0,-15.6]);}
     if(st.ammo<5){await page.keyboard.press('KeyR');await page.waitForTimeout(2100);}
     await page.waitForTimeout(100);
   }
-  const final=await state();assert.ok(final.over);assert.equal(final.kills,4);assert.ok(final.credits>=700);assert.ok(final.shots>0&&final.hits>0);
+  const final=await state();assert.ok(final.over);assert.equal(final.kills,6);assert.ok(final.credits>=700);assert.ok(final.shots>0&&final.hits>0);
   await page.screenshot({path:path.join(out,'complete.png')});fs.writeFileSync(path.join(out,'state.json'),JSON.stringify(final,null,2));
   await page.click('#results-menu');await page.getByRole('button',{name:'ARSENAL / STORE',exact:true}).click();
   await page.locator('#arsenal .shop-item').filter({hasText:'KESTREL'}).getByRole('button').click();await page.locator('#arsenal .shop-item').filter({hasText:'KESTREL'}).getByRole('button').click();

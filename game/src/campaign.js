@@ -6,7 +6,7 @@ export const MAPS=Object.freeze([
 ]);
 export const MODES=Object.freeze([{id:'campaign',name:'CAMPAIGN'},{id:'survival',name:'SURVIVAL'},{id:'extraction',name:'EXTRACTION'},{id:'team',name:'TEAM BATTLE'}]);
 const definitions=[
- ['BLACKSITE BREACH','THE BLACKOUT','Several AEGIS facilities have stopped responding. Return to Blacksite, recover its access log and survive extraction. Maya disappeared here. Kane never came home.',4,1,0,false,'E. KANE // credential accepted. Daniel: No. Kane is dead.'],
+ ['BLACKSITE BREACH','THE BLACKOUT','Several AEGIS facilities have stopped responding. Return to Blacksite, recover its access log and survive extraction. Maya disappeared here. Kane never came home.',6,1,0,false,'E. KANE // credential accepted. Daniel: No. Kane is dead.'],
  ['BURNING SIGNAL','THE TRANSFER','Sentinel is moving AEGIS fragments through a refinery relay. Disable both transmitters, sabotage the fuel controls and escape.',6,2,0,false,'Recovered command fragment: Hold the line, Echo. Daniel recognizes the cadence.'],
  ['GHOST PROTOCOL','THE RECORD','An AEGIS engineer is held inside the command building. Rescue the engineer, defend decryption and recover the Reyes file.',7,2,18,false,'Security recording confirmed: ELIAS KANE. Reyes status: transferred, destination encrypted.'],
  ['BELOW ZERO','THE CORE','Restore power beneath Blacksite. Shut down security, reach the AEGIS core and confront the commander before the vault seals.',8,2,0,true,'Kane: AEGIS does not relay orders. It writes them. Maya found the override. Her signal is still out there.']
