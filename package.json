@@ -25,6 +25,14 @@
   ],
   "author": "Dairus Okoh",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Dairus01/blacksite.git"
+  },
+  "homepage": "https://github.com/Dairus01/blacksite#readme",
+  "bugs": {
+    "url": "https://github.com/Dairus01/blacksite/issues"
+  },
   "engines": {
     "node": ">=22"
   },

@@ -16,6 +16,7 @@ Requires Node.js 22 or newer. Run `npm install`, then `npm start`. Open http://1
 - Finite ammunition, ADS, reloads, health/armor, frag/smoke grenades, medkits and plates.
 - Checkpoints, mission rewards, credits/XP, progression-gated arsenal and versioned local saves.
 - A skippable 15-second memory edit, action-driven tutorial, settings, pause and touch controls.
+- A live procedural minimap and full tactical map with floor tracking, objectives, extraction, allies, discovered locations, and detection-gated hostile contacts.
 
 This is a playable rebuild milestone. See `docs/REBUILD_STATUS.md` for verification and remaining visual/gameplay work; the reference-fidelity target is not yet fully accepted.
 
@@ -30,7 +31,7 @@ This is a playable rebuild milestone. See `docs/REBUILD_STATUS.md` for verificat
 | Jump / interact | Space / E | JUMP / USE |
 | Frag / smoke | G / X | FRAG / SMOKE |
 | Medkit / plate | H / B | HEAL / PLATE |
-| Objective / pause | M / Escape | OBJ / MENU |
+| Tactical map / pause | M / Escape | MAP / MENU |
 
 ## Verification
 
@@ -44,6 +45,10 @@ With `npm start` running, also run `npm run test:systems`, `node .tools/stair-pl
 
 Every 3D asset is constructed in Three.js code. No imported 3D models are shipped. Original media stays in `Sep 25 - 01_14/`; all 1,152 decoded video frames and analysis crops stay in ignored `.work/` folders. Only the optimized memory edit, small portraits, audio and used presentation assets belong in `game/`.
 
-The official gate and ship tools are preserved. Deploy only `game/`, never the repository root. Nothing has been pushed or published by this rebuild.
+The official gate and ship tools are preserved. Deploy only `game/`, never the repository root.
+
+## Repository
+
+Source: https://github.com/Dairus01/blacksite
 
 Created by Dairus Okoh. See `ASSET_NOTICE.md`, `LICENSE`, and the retained font/recipe licenses.
