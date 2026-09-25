@@ -16,7 +16,7 @@ The untouched baseline is on `recovery/pre-media-rebuild-20260925` at `974a7cd`.
 
 ## Checks and artifacts
 
-- `npm test`: 8 passing tests covering save/economy/unlocks, procedural rig and navigation.
+- `npm test`: 9 passing tests covering save/economy/unlocks, immutable save snapshots, procedural rig and navigation.
 - `npm run test:browser`: passing; zero captured console errors or missing resources. Inspect `artifacts/jam-acceptance/complete.png`, `mobile.png`, `stairs.png`, `state.json`.
 - `npm run jam:campaign`: all four missions passing; `artifacts/campaign-playtest/report.json` and mission screenshots.
 - `npm run test:systems`: tutorial, three alternate modes, hostile death and respawn passed; `artifacts/rebuild/systems.json`.
@@ -31,6 +31,8 @@ Browser completion tests use safe debug positioning and aiming, then real inputs
 The latest character pass replaces rounded chest shells with clipped plate carriers, adds belt/pouches/boot soles, ammunition belts and an open scout hood, and corrects hair intersection. Gait phase follows distance traveled, follows lateral movement and samples tread height. Two-bone hand/foot solving connects the rig. Defeated actors are bounded and disposed so endless waves cannot accumulate unlimited bodies.
 
 The lineup in `artifacts/rebuild/character-lineup.png` still reads as stylized procedural infantry, rather than matching the realism of the supplied boards. That reference-fidelity gate remains open. The four maps have different topology and landmarks but need further dressing, material detail and normal-route playtesting. The engineering pass must not be presented as complete visual acceptance.
+
+Save-state reads now reuse an immutable snapshot, refreshed on mutation. Previously every frame could deep-copy the entire progression state several times. A regression check verifies that snapshots cannot mutate saved ownership and that new rewards publish a new snapshot. Throttled mobile FPS varies on the local integrated GPU; use the final gate verdict's measured value rather than assuming desktop frame rates.
 
 ## Remaining work toward the full brief
 

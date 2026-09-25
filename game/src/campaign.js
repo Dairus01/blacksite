@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS=Object.freeze({sensitivity:1,master:.7,music:.4,sf
 const KEY='project-blacksite:save:v1';
 const fresh=()=>({version:1,highestCompleted:0,selectedLevel:1,selectedWeapon:'arx7',credits:0,xp:0,owned:['arx7','sentinel'],upgrades:{},settings:{...DEFAULT_SETTINGS},best:{},intel:[]});
 const finite=(v,lo,hi)=>Number.isFinite(Number(v))?Math.max(lo,Math.min(hi,Number(v))):lo;
+const freeze=value=>{if(value&&typeof value==='object'){for(const child of Object.values(value))freeze(child);Object.freeze(value);}return value;};
 export function createCampaignProgress(storage=globalThis.localStorage){
  let data=fresh();
  try{const p=JSON.parse(storage?.getItem(KEY)||'null');if(p?.version===1){data={...data,highestCompleted:Math.trunc(finite(p.highestCompleted,0,4)),credits:Math.trunc(finite(p.credits,0,1e7)),xp:Math.trunc(finite(p.xp,0,1e8))};
@@ -35,9 +36,11 @@ export function createCampaignProgress(storage=globalThis.localStorage){
  for(const k of ['sensitivity','master','music','sfx','resolution','hudScale','shake']) data.settings[k]=finite(data.settings[k],k==='sensitivity'?.2:k==='resolution'?.5:k==='hudScale'?.7:0,k==='sensitivity'?3:k==='hudScale'?1.5:1);
  data.best=p.best&&typeof p.best==='object'?p.best:{};data.intel=Array.isArray(p.intel)?p.intel.filter(v=>typeof v==='string').slice(0,30):[];
  }}catch{}
- const persist=()=>{try{storage?.setItem(KEY,JSON.stringify(data));}catch{}};
+ // Publish one immutable snapshot per mutation, never a deep copy per frame read.
+ let snapshot=freeze(structuredClone(data));
+ const persist=()=>{snapshot=freeze(structuredClone(data));try{storage?.setItem(KEY,JSON.stringify(data));}catch{}};
  return {
- get state(){return structuredClone(data);}, unlocked(id){return getLevel(id).id<=Math.min(4,data.highestCompleted+1);}, owns(id){return data.owned.includes(id);},
+ get state(){return snapshot;}, unlocked(id){return getLevel(id).id<=Math.min(4,data.highestCompleted+1);}, owns(id){return data.owned.includes(id);},
  selectLevel(id){const n=getLevel(id).id;if(n<=data.highestCompleted+1)data.selectedLevel=n;persist();return data.selectedLevel;},
  selectWeapon(id){if(data.owned.includes(id)&&['arx7','sentinel','kestrel','breacher','vesper','bastion'].includes(id))data.selectedWeapon=id;persist();return data.selectedWeapon;},
  complete(id,stats={}){const n=getLevel(id).id;if(n>data.highestCompleted+1)return null;const replay=n<=data.highestCompleted;
