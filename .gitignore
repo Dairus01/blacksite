@@ -5,3 +5,29 @@ _jam/
 dist/
 game/assets404/_verify/
 *.log
+
+# Source reference media and generated analysis evidence are local-only.
+Sep 25 - 01_14/
+video-frames/
+contact-sheets/
+reference-crops/
+pose-analysis/
+environment-analysis/
+weapon-analysis/
+
+# Test runners, coverage, caches, and editor/OS files.
+coverage/
+playwright-report/
+test-results/
+.cache/
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
+
+# Local configuration and credentials. Commit explicit examples only.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
