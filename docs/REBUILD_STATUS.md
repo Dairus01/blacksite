@@ -22,7 +22,7 @@ The untouched baseline is on `recovery/pre-media-rebuild-20260925` at `974a7cd`.
 - `npm run test:systems`: tutorial, three alternate modes, hostile death and respawn passed; `artifacts/rebuild/systems.json`.
 - `node .tools/stair-playtest.mjs`: all six movement cases passed; `artifacts/rebuild/stairs.json`.
 - `npm run jam:ship`: 29 modules and one page parse; paths stay inside the game root.
-- Official gate evidence is recorded separately after the final code checkpoint. The earlier local gate passed at 8.8 MB, 4.9 seconds ready, 367 peak draws and 41,262 peak triangles. These are local measurements, not a claim about a deployed site.
+- Official local gate at code checkpoint `338fd4f`: 8.8 MB response-body transfer, 8.6 seconds ready, 392 peak draws, 41,182 peak triangles, 15.3 metres of real touch movement, zero errors/missing files. `artifacts/404-rebuild-final/verdict.json` records the subsequent final-checkpoint rerun. These are local measurements, not a claim about a deployed site.
 
 Browser completion tests use safe debug positioning and aiming, then real inputs and ordinary combat/objective code. They establish mechanics and progression, not normal mission duration, encounter balance, or uninterrupted human playability.
 

@@ -25,3 +25,12 @@ Image identifiers refer to MEDIA_MANIFEST.json order (exact names retained there
 | Memory | all six videos; VIDEO_ANALYSIS.md | media/memory.mp4, src/memory.js; 15s skippable edit |
 
 Development crops: .work/reference-crops. Annotated poses: .work/pose-analysis. Runtime screenshots and visual verdicts belong under artifacts and in the final rebuild report. Assets listed with future file paths are pending until those files exist and are verified.
+
+## Iteration evidence, 25 September
+
+- `artifacts/rebuild/character-lineup.png`: Daniel, Maya, Kane and five Sentinel roles; compared against board 5 crops. Revised carrier outline, equipment, hair, scout hood and ammunition belt. Human joints are functional, but realism/facial identity still needs work; see `REBUILD_STATUS.md`.
+- `artifacts/campaign-playtest/mission-1-spawn.png` through `mission-4-spawn.png`: coastal road/catwalk, refinery tanks, command interiors and laboratory core. Four different authored layouts; architectural dressing remains an open visual gate.
+- `artifacts/jam-acceptance/stairs.png` and `artifacts/rebuild/stairs.json`: real tread collision and six movement cases. Fixed a displaced wall collider that previously blocked the fourth tread and aligned the upper deck to the landing.
+- `artifacts/rebuild/arsenal.png`: on-demand renders of the same six weapon models used in gameplay, including the separate pistol and Bastion LMG. These previews are generated locally at runtime, not imported models.
+- `artifacts/jam-acceptance/complete.png`, `mobile.png`, `state.json`: completed first mission, reward/economy state and 390×844 DPR 3 controls.
+- `artifacts/404-rebuild-final/`: unmodified official mobile-gate capture set and verdict. Local evidence only; not deployment acceptance.

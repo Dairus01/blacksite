@@ -15,7 +15,7 @@ export const LEVELS=Object.freeze(definitions.map((d,i)=>Object.freeze({id:i+1,t
 export function getLevel(id){return LEVELS[Math.max(0,Math.min(3,(Math.trunc(Number(id))||1)-1))];}
 export const SHOP=Object.freeze([
  ...[['reddot','REFLEX SIGHT',250,0,'ADS spread -20%'],['magnifier','3× OPTIC',650,2,'Narrower ADS field of view'],['suppressor','SUPPRESSOR',450,1,'Reduced gunshot detection radius'],['vertical','VERTICAL GRIP',300,1,'Recoil -20%'],['angled','ANGLED GRIP',300,1,'Faster sight alignment'],['light','TACTICAL LIGHT',250,1,'Illuminates the sight line'],['laser','LASER MODULE',350,2,'Hip spread -25%'],['compensator','COMPENSATOR',450,2,'Recoil -25%'],['stock','TACTICAL STOCK',400,2,'Less weapon sway'],['medical','MEDICAL PACK',300,1,'One extra medkit per deployment'],['grenadier','GRENADE POUCH',350,2,'One extra frag per deployment']].map(([id,name,cost,unlock,effect])=>({id,name,cost,unlock,effect,category:['medical','grenadier'].includes(id)?'EQUIPMENT':'ATTACHMENTS'})),
- {id:'bastion',name:'BASTION-60',category:'WEAPONS',cost:1200,unlock:4,effect:'60 rounds ? sustained fire ? heavy field load'},
+ {id:'bastion',name:'BASTION-60',category:'WEAPONS',cost:1200,unlock:4,effect:'60 rounds / sustained fire / heavy field load'},
  {id:'kestrel',name:'KESTREL-9',category:'WEAPONS',cost:500,unlock:1,effect:'36 rounds · compact · high fire rate'},
  {id:'breacher',name:'BR-12',category:'WEAPONS',cost:650,unlock:2,effect:'8 shells · close range · eight pellets'},
  {id:'vesper',name:'VESPER',category:'WEAPONS',cost:850,unlock:3,effect:'16 rounds · 55m · precision'},
